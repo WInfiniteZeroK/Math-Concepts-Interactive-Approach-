@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elementary Row Operations – Interactive Lesson</title>
+<link rel="stylesheet" href="common.css">
+<style>
+section{scroll-margin-top:60px}
+.sub{color:var(--muted);margin:0 0 12px}
+.cards{display:grid;grid-template-columns:1fr;gap:12px}
+.cards .card{margin:0}
+.tag{display:inline-block;background:var(--accent-soft);color:var(--accent);font-weight:bold;border-radius:12px;padding:2px 10px;font-size:.8rem;margin-bottom:6px}
+.card h3{margin:2px 0 6px}
+.m{white-space:nowrap}
+.notation{font-family:"Cambria Math","Latin Modern Math",Georgia,serif;font-size:1.2rem;background:var(--soft);border:1px dashed #ccc;border-radius:6px;padding:6px 12px;margin:8px 0;text-align:center;display:inline-block}
+.ex{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;margin:14px 0 8px}
+/* long arrow with the operation written above it */
+.arrow{display:flex;flex-direction:column;align-items:center;min-width:170px}
+.arrow .oplabel{font-family:Consolas,monospace;font-size:1.05rem;color:var(--accent);font-weight:bold;margin-bottom:6px;white-space:nowrap}
+.arrow .line{position:relative;width:150px;height:3px;background:var(--accent);border-radius:2px}
+.arrow .line::after{content:"";position:absolute;right:-3px;top:-6px;border-left:14px solid var(--accent);border-top:7px solid transparent;border-bottom:7px solid transparent}
+.facts{font-size:.9rem;color:var(--muted);margin:8px 0 0;padding-left:0;list-style:none}
+.facts b{color:var(--ink)}
+/* matrices in square brackets [ ] (same style as the Gaussian elimination lesson) */
+table.mat{border-collapse:separate;border-spacing:0;border-left:2px solid #333;border-right:2px solid #333;padding:4px 2px;
+  font-family:"Cambria Math","Latin Modern Math",Georgia,serif;display:inline-table;vertical-align:middle;
+  background:linear-gradient(#333,#333) left top/7px 2px no-repeat,linear-gradient(#333,#333) left bottom/7px 2px no-repeat,
+             linear-gradient(#333,#333) right top/7px 2px no-repeat,linear-gradient(#333,#333) right bottom/7px 2px no-repeat}
+table.mat td{padding:4px 11px;text-align:center;min-width:38px;font-size:1.15rem}
+table.mat tr.hl td{background:var(--highlight)}
+.pill{display:inline-block;font-size:.85rem;background:#f5f5f5;border:1px solid var(--border);border-radius:12px;padding:1px 10px;color:var(--muted)}
+/* quiz */
+.bar{height:8px;background:#eee;border-radius:4px;overflow:hidden;margin-bottom:14px}
+.bar div{height:100%;background:var(--accent);width:0;transition:width .3s}
+.q{font-size:1.1rem;font-weight:bold;margin:8px 0 10px}
+.qm{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;margin:6px 0 14px;font-size:1.2rem}
+.opt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;margin:6px 0;padding:8px 12px;border-radius:8px;border-color:#ccc;background:#fff;font-size:1.05rem}
+.opt:hover:not(:disabled){border-color:var(--accent);background:var(--accent-soft)}
+.opt .L{font-weight:bold;color:var(--accent);min-width:20px}
+.opt table.mat td{font-size:1rem;padding:2px 9px;min-width:28px}
+.opt.right{background:#e8f5e9;border-color:var(--good)}
+.opt.wrong{background:#ffebee;border-color:var(--bad)}
+.opt:disabled{cursor:default;opacity:1;color:var(--ink)}
+.why{margin-top:10px;padding:8px 10px;background:var(--soft);border:1px solid #e5e5e5;border-radius:6px;display:none}
+.score{font-size:3rem;font-weight:bold;text-align:center;color:var(--accent)}
+.center{text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <h1>Elementary Row Operations</h1>
+  <p>Learn the three moves, then test yourself with a short quiz.</p>
+</header>
+<nav><a class="toc" href="index.html">☰ Table of Contents</a><a href="#learn">1 · Learn</a><a href="#quiz">2 · Quiz</a></nav>
+<main>
+
+<section id="learn">
+  <h2>1 · The three operations</h2>
+  <p class="sub">Elementary row operations change a matrix <b>without changing the solution set</b> of the linear system it represents. There are exactly three kinds.</p>
+  <div class="cards" id="cards"></div>
+</section>
+
+<section id="quiz">
+  <h2>2 · Quick quiz</h2>
+  <p class="sub">Six questions in random order. The operations and matrices are random, so every attempt is different. You get feedback after every answer.</p>
+  <div id="quizBox"></div>
+</section>
+
+</main>
+<footer>Linear Algebra · Interactive lesson on elementary row operations</footer>
+
+<script>
+/* ---------- fractions & matrices ---------- */
+function gcd(a,b){a=Math.abs(a);b=Math.abs(b);while(b){var t=a%b;a=b;b=t;}return a;}
+function F(n,d){if(d===undefined)d=1;if(d<0){n=-n;d=-d;}var g=gcd(n,d)||1;return {n:n/g+0,d:d/g};}
+function add(a,b){return F(a.n*b.d+b.n*a.d,a.d*b.d);}
+function mul(a,b){return F(a.n*b.n,a.d*b.d);}
+function fstr(a){var s=a.d===1?String(Math.abs(a.n)):Math.abs(a.n)+"/"+a.d;return (a.n<0?"\u2212":"")+s;}
+function mk(rows){return rows.map(function(r){return r.map(function(x){return F(x);});});}
+function matHTML(M,hl){
+  var h='<table class="mat">';
+  for(var i=0;i<M.length;i++){
+    h+='<tr'+(hl&&hl.indexOf(i)>=0?' class="hl"':'')+'>';
+    for(var j=0;j<M[i].length;j++)h+='<td>'+fstr(M[i][j])+'</td>';
+    h+='</tr>';
+  }
+  return h+'</table>';
+}
+function applyOp(M,op){
+  var N=M.map(function(r){return r.slice();});
+  if(op.t==="swap"){var t=N[op.i];N[op.i]=N[op.j];N[op.j]=t;}
+  else if(op.t==="scale"){N[op.i]=N[op.i].map(function(x){return mul(x,op.c);});}
+  else{N[op.i]=N[op.i].map(function(x,k){return add(x,mul(op.c,N[op.j][k]));});}
+  return N;
+}
+function MT(rows){return matHTML(mk(rows));}              /* matrix from plain numbers */
+function N(s){return '<span class="m">'+s+'</span>';}      /* math-styled text */
+function arrowHTML(label){return '<div class="arrow"><span class="oplabel">'+label+'</span><span class="line"></span></div>';}
+
+/* ---------- LEARN cards ---------- */
+var cardData=[
+ {tag:"Type 1",title:"Row interchange",txt:"Swap two rows.",not:"R\u1d62 \u2194 R\u2c7c",
+  A:mk([[0,2,4],[1,3,5]]),op:{t:"swap",i:0,j:1},lbl:"R\u2081 \u2194 R\u2082",hl:[0,1],inv:"the same swap, R\u1d62 \u2194 R\u2c7c",
+  note:"Handy when a pivot position holds a 0."},
+ {tag:"Type 2",title:"Row scaling",txt:"Multiply every entry of a row by a nonzero number c.",not:"R\u1d62 \u2192 c\u00b7R\u1d62 \u00a0(c \u2260 0)",
+  A:mk([[2,4,6],[1,3,5]]),op:{t:"scale",i:0,c:F(1,2)},lbl:"R\u2081 \u2192 \u00bdR\u2081",hl:[0],inv:"R\u1d62 \u2192 (1/c)\u00b7R\u1d62",
+  note:"Why c \u2260 0? Multiplying by 0 destroys the row and cannot be undone."},
+ {tag:"Type 3",title:"Row replacement",txt:"Add a multiple of one row to a different row.",not:"R\u1d62 \u2192 R\u1d62 + c\u00b7R\u2c7c \u00a0(i \u2260 j)",
+  A:mk([[1,2,3],[3,7,10]]),op:{t:"rep",i:1,j:0,c:F(-3)},lbl:"R\u2082 \u2192 R\u2082 \u2212 3R\u2081",hl:[1],inv:"R\u1d62 \u2192 R\u1d62 \u2212 c\u00b7R\u2c7c",
+  note:"This is the workhorse for creating zeros."}
+];
+(function(){
+  var h="";
+  cardData.forEach(function(c){
+    var B=applyOp(c.A,c.op);
+    h+='<div class="card"><span class="tag">'+c.tag+'</span><h3>'+c.title+'</h3><div>'+c.txt+'</div>'+
+    '<div style="text-align:center"><span class="notation">'+c.not+'</span></div>'+
+    '<div class="ex">'+matHTML(c.A)+arrowHTML(c.lbl)+matHTML(B,c.hl)+'</div>'+
+    '<ul class="facts"><li><b>Inverse:</b> '+c.inv+'</li><li>'+c.note+'</li></ul></div>';
+  });
+  document.getElementById("cards").innerHTML=h;
+})();
+
+/* ---------- QUIZ: every question is generated randomly ---------- */
+var $=function(id){return document.getElementById(id);};
+function rnd(a,b){return a+Math.floor(Math.random()*(b-a+1));}
+function pick(a){return a[rnd(0,a.length-1)];}
+function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function nz(lo,hi){var v=0;while(v===0)v=rnd(lo,hi);return v;}
+function mh(M){return matHTML(M);}                           /* matrix -> html (no highlight) */
+var SUB=["₀","₁","₂","₃","₄","₅","₆","₇","₈","₉"];
+function Rn(i){return "R"+SUB[i+1];}                       /* i is 0-based */
+function coef(c){
+  if(c.d===1){if(c.n===1)return "";if(c.n===-1)return "−";return fstr(c);}
+  var f={"1/2":"½","1/3":"⅓","1/4":"¼"},k=Math.abs(c.n)+"/"+c.d;
+  return f[k]?(c.n<0?"−":"")+f[k]:"("+fstr(c)+")";
+}
+function term(c,i){return coef(c)+Rn(i);}
+function opStr(op){
+  if(op.t==="swap")return Rn(op.i)+" ↔ "+Rn(op.j);
+  if(op.t==="scale")return Rn(op.i)+" → "+term(op.c,op.i);
+  var ng=op.c.n<0,a=ng?F(-op.c.n,op.c.d):op.c;
+  return Rn(op.i)+" → "+Rn(op.i)+(ng?" − ":" + ")+term(a,op.j);
+}
+function vec(a){return "["+a.map(fstr).join(", ")+"]";}
+function lin(Ri,c,Rj){var m=Math.abs(c);return vec(Ri)+(c<0?" − ":" + ")+(m===1?"":m+"·")+vec(Rj);}
+function mkey(M){return M.map(function(r){return r.map(fstr).join(",");}).join(";");}
+function copyM(M){return M.map(function(r){return r.slice();});}
+function twoRows(n){var i=rnd(0,n-1),j;do{j=rnd(0,n-1);}while(j===i);return [i,j];}
+function rndOp(type,n){
+  var r=twoRows(n),i=r[0],j=r[1];
+  if(type==="swap"){if(i>j){var t=i;i=j;j=t;}return {t:"swap",i:i,j:j};}
+  if(type==="scale")return {t:"scale",i:i,c:pick([F(2),F(3),F(5),F(-1),F(-2),F(-3),F(1,2),F(1,3)])};
+  return {t:"rep",i:i,j:j,c:F(pick([-4,-3,-2,-1,1,2,3,4]))};
+}
+function pickDistractors(good,pool,n){
+  var seen={},out=[];seen[mkey(good)]=1;
+  shuffle(pool.slice()).forEach(function(M){var k=mkey(M);if(!seen[k]&&out.length<n){seen[k]=1;out.push(M);}});
+  var tries=0;
+  while(out.length<n&&tries<60){
+    tries++;var M=copyM(good),a=rnd(0,M.length-1),b=rnd(0,M[0].length-1);
+    M[a][b]=add(M[a][b],F(pick([-2,-1,1,2])));
+    var k=mkey(M);if(!seen[k]){seen[k]=1;out.push(M);}
+  }
+  return out;
+}
+/* three operations of different kinds, shown as answer choices */
+function threeValid(){
+  var ops=[rndOp("swap",3),rndOp("scale",3),rndOp("rep",3)];
+  return ops.map(function(x){return N(opStr(x));});
+}
+
+/* Q-type 1: classify a random operation */
+function genClassify(){
+  var type=pick(["swap","scale","rep"]),op=rndOp(type,3);
+  var opts=["Row interchange","Row scaling","Row replacement","Not an elementary row operation"];
+  var a={swap:0,scale:1,rep:2}[type],why;
+  if(type==="swap")why=N(opStr(op))+" exchanges two rows, so it is a row interchange.";
+  else if(type==="scale")why=N(opStr(op))+" multiplies every entry of "+N(Rn(op.i))+" by the nonzero number "+N(fstr(op.c))+", so it is a row scaling.";
+  else why=N(opStr(op))+" adds a multiple of one row ("+N(term(op.c,op.j))+") to a <i>different</i> row, so it is a row replacement.";
+  return {q:"Which type of elementary row operation is this?",stem:'<span class="notation">'+opStr(op)+'</span>',o:opts,a:a,why:why};
+}
+
+/* Q-type 2: spot the "multiply by 0" operation */
+function genZero(){
+  var z=rnd(0,2),bad=Rn(z)+" → 0·"+Rn(z);
+  return {q:"Which of these is <b>NOT</b> an elementary row operation?",o:threeValid().concat([N(bad)]),a:3,
+    why:"Scaling needs a <i>nonzero</i> constant. "+N(bad)+" wipes out the row and could never be undone."};
+}
+
+/* Q-type 3: apply a random row replacement to a random 2×2 matrix */
+function genApply(){
+  var jr=rnd(0,1),ir=1-jr,c,p,q,r;
+  do{c=pick([-4,-3,-2,-1,1,2,3]);p=pick([1,1,2]);q=nz(-4,5);r=nz(-5,6);}while(r+c*q===0);
+  var Ai=[];Ai[jr]=[p,q];Ai[ir]=[-c*p,r];
+  var A=mk(Ai),op={t:"rep",i:ir,j:jr,c:F(c)},good=applyOp(A,op);
+  var pool=[
+    applyOp(A,{t:"rep",i:ir,j:jr,c:F(-c)}),
+    applyOp(A,{t:"rep",i:jr,j:ir,c:F(c)}),
+    A.map(function(x,k){return k===ir?[x[0],good[ir][1]]:x.slice();}),
+    A.map(function(x,k){return k===ir?[good[ir][0],x[1]]:x.slice();}),
+    copyM(A)
+  ];
+  var d=pickDistractors(good,pool,3);
+  return {q:"Apply "+N(opStr(op))+" to the matrix below. What is the result?",stem:mh(A),
+    o:[mh(good)].concat(d.map(mh)),a:0,
+    why:"New "+N(Rn(ir))+" = "+N(lin(A[ir],c,A[jr])+" = "+vec(good[ir]))+". "+N(Rn(jr))+" is unchanged.",
+    dbg:{A:A,op:op}};
+}
+
+/* Q-type 4: spot the "scale and add in one step" operation */
+function genCombined(){
+  var r=twoRows(3),i=r[0],j=r[1],a=pick([2,3,4]),b=pick([-2,-1,1,2]),mb=Math.abs(b);
+  var tail=(b<0?" − ":" + ")+(mb===1?"":mb)+Rn(j);
+  var bad=Rn(i)+" → "+a+Rn(i)+tail;
+  return {q:"Which of these is <b>NOT</b> an elementary row operation?",o:threeValid().concat([N(bad)]),a:3,
+    why:N(bad)+" scales "+N(Rn(i))+" <i>and</i> adds a multiple of "+N(Rn(j))+" in a single step. A row replacement must have the form "+N("Rᵢ → Rᵢ + c·Rⱼ")+", where "+N("Rᵢ")+" keeps coefficient 1. You can reach the same result with two valid steps: first "+N(Rn(i)+" → "+a+Rn(i))+", then "+N(Rn(i)+" → "+Rn(i)+tail)+"."};
+}
+
+/* Q-type 5: which single operation turns A into B */
+function genWhich(){
+  var type=pick(["scale","rep","swap"]),Ai,op;
+  if(type==="scale"){
+    var i=rnd(0,1),c,row;
+    if(Math.random()<0.5){var k=pick([2,3,4]);c=F(1,k);row=[k*nz(-3,3),k*nz(-3,3)];}
+    else{c=F(pick([2,3,-1,-2]));row=[nz(-4,5),nz(-4,5)];}
+    Ai=[];Ai[i]=row;Ai[1-i]=[nz(-5,7),nz(-5,7)];op={t:"scale",i:i,c:c};
+  }else if(type==="rep"){
+    var i2=rnd(0,1);Ai=[];Ai[i2]=[nz(-5,7),nz(-5,7)];Ai[1-i2]=[nz(-5,7),nz(-5,7)];
+    op={t:"rep",i:i2,j:1-i2,c:F(pick([-3,-2,-1,1,2,3]))};
+  }else{
+    do{Ai=[[nz(-5,7),nz(-5,7)],[nz(-5,7),nz(-5,7)]];}while(Ai[0][0]===Ai[1][0]&&Ai[0][1]===Ai[1][1]);
+    op={t:"swap",i:0,j:1};
+  }
+  var A=mk(Ai),B=applyOp(A,op),goodTxt=opStr(op);
+  var cands=[{t:"swap",i:0,j:1}];
+  [F(1,2),F(1,3),F(1,4),F(2),F(3),F(-1),F(-2)].forEach(function(c){[0,1].forEach(function(i){cands.push({t:"scale",i:i,c:c});});});
+  [-3,-2,-1,1,2,3].forEach(function(c){[[0,1],[1,0]].forEach(function(p){cands.push({t:"rep",i:p[0],j:p[1],c:F(c)});});});
+  var groups={swap:[],scale:[],rep:[]};
+  cands.forEach(function(d){if(opStr(d)!==goodTxt&&mkey(applyOp(A,d))!==mkey(B))groups[d.t].push(d);});
+  var chosen=[];
+  ["swap","scale","rep"].forEach(function(t){if(groups[t].length)chosen.push(pick(groups[t]));});
+  var rest=shuffle([].concat(groups.swap,groups.scale,groups.rep)).filter(function(d){return chosen.indexOf(d)<0;});
+  while(chosen.length<3)chosen.push(rest.shift());
+  var why;
+  if(type==="scale")why="Row "+(op.i+1)+" went from "+N(vec(A[op.i]))+" to "+N(vec(B[op.i]))+" (every entry multiplied by "+N(fstr(op.c))+") and the other row did not change, so the operation is "+N(goodTxt)+".";
+  else if(type==="swap")why="The two rows have exchanged places ("+N(vec(A[0]))+" and "+N(vec(A[1]))+" traded positions), so the operation is "+N(goodTxt)+".";
+  else{var cc=op.c.n;why="Row "+(op.j+1)+" did not change, but row "+(op.i+1)+" went from "+N(vec(A[op.i]))+" to "+N(vec(B[op.i]))+". Indeed "+N(lin(A[op.i],cc,A[op.j])+" = "+vec(B[op.i]))+", so the operation is "+N(goodTxt)+".";}
+  var ops=[op].concat(chosen);
+  return {q:"Which single operation turns matrix A into matrix B?",
+    stem:'<span class="m">A = </span>'+mh(A)+'<span class="m"> &nbsp;→&nbsp; B = </span>'+mh(B),
+    o:ops.map(function(x){return N(opStr(x));}),a:0,why:why,dbg:{A:A,B:B,ops:ops}};
+}
+
+/* Q-type 6: apply a random row swap to a random matrix (2×3 or 3×2) */
+function genSwap(){
+  var n=pick([2,3]),m=n===2?3:2;
+  var vals=shuffle([-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9]).slice(0,n*m),Ai=[];
+  for(var r=0;r<n;r++)Ai.push(vals.slice(r*m,(r+1)*m));
+  var pr=twoRows(n),i=Math.min(pr[0],pr[1]),j=Math.max(pr[0],pr[1]);
+  var A=mk(Ai),op={t:"swap",i:i,j:j},good=applyOp(A,op);
+  function rev(M){return M.map(function(x){return x.slice().reverse();});}
+  function cs(M){return M.map(function(x){var t=x.slice(),y=t[0];t[0]=t[1];t[1]=y;return t;});}
+  var pool=[copyM(A),rev(A),rev(good),cs(A),cs(good)];
+  for(var a=0;a<n;a++)for(var b=a+1;b<n;b++){if(!(a===i&&b===j))pool.push(applyOp(A,{t:"swap",i:a,j:b}));}
+  var d=pickDistractors(good,pool,3);
+  return {q:"Apply "+N(opStr(op))+" to the matrix below. What is the result?",stem:mh(A),
+    o:[mh(good)].concat(d.map(mh)),a:0,
+    why:"Swapping rows exchanges the <i>whole rows</i>: row "+(i+1)+" becomes "+N(vec(A[j]))+" and row "+(j+1)+" becomes "+N(vec(A[i]))+". "+(n===2?"Columns are not touched.":"The other row and the columns are not touched."),
+    dbg:{A:A,op:op}};
+}
+
+/* ---------- quiz engine ---------- */
+var QGENS=[genClassify,genZero,genApply,genCombined,genWhich,genSwap];
+var qi=0,score=0,order=[],answered=false,deck=[];
+function startQuiz(){qi=0;score=0;deck=shuffle(QGENS.slice());showQ();}   /* shuffled question order */
+function showQ(){
+  var Q=deck[qi]();answered=false;                                        /* fresh random content */
+  order=shuffle(Q.o.map(function(t,i){return {t:t,ok:i===Q.a};}));
+  var h='<div class="bar"><div style="width:'+(qi/deck.length*100)+'%"></div></div>'+
+    '<div class="pill">Question '+(qi+1)+' of '+deck.length+'</div><div class="q">'+Q.q+'</div>'+
+    (Q.stem?'<div class="qm">'+Q.stem+'</div>':'');
+  order.forEach(function(o,i){h+='<button class="opt" data-i="'+i+'"><span class="L">'+String.fromCharCode(65+i)+'.</span><span>'+o.t+'</span></button>';});
+  h+='<div class="why" id="why"></div><div style="margin-top:12px;display:none" id="nextWrap"><button class="primary" id="nextQ">'+(qi===deck.length-1?"See my score":"Next question →")+'</button></div>';
+  $("quizBox").innerHTML=h;
+  var btns=$("quizBox").querySelectorAll(".opt");
+  btns.forEach(function(b){b.onclick=function(){
+    if(answered)return;answered=true;
+    var k=+b.getAttribute("data-i"),ok=order[k].ok;
+    if(ok)score++;
+    btns.forEach(function(x,idx){x.disabled=true;if(order[idx].ok)x.classList.add("right");});
+    if(!ok)b.classList.add("wrong");
+    var w=$("why");w.style.display="block";w.innerHTML=(ok?"✅ <b>Correct!</b> ":"❌ <b>Not quite.</b> ")+Q.why;
+    $("nextWrap").style.display="block";
+    $("nextQ").onclick=function(){qi++;if(qi<deck.length)showQ();else endQuiz();};
+  };});
+}
+function endQuiz(){
+  var msg=score===deck.length?"Perfect! You've mastered the basics. 🎉":score>=4?"Great job! Review the explanations you missed.":"Good start. Revisit the lesson above, then try again.";
+  $("quizBox").innerHTML='<div class="bar"><div style="width:100%"></div></div><div class="center"><div class="score">'+score+' / '+deck.length+'</div><p>'+msg+'</p><p class="sub">Press the button for a new set of random questions.</p><button class="primary" id="retry">Try again with new questions</button></div>';
+  $("retry").onclick=startQuiz;
+}
+startQuiz();
+</script>
+</body>
+</html>

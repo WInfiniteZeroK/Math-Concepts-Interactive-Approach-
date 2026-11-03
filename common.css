@@ -1,0 +1,53 @@
+/* Shared base styles for all lessons (derived from GaussianEliminationV5.html) */
+:root {
+  --ink: #222;
+  --muted: #555;
+  --accent: #1565c0;
+  --accent-soft: #e3f2fd;
+  --accent2: #6a1b9a;
+  --good: #2e7d32;
+  --bad: #c62828;
+  --border: #ddd;
+  --soft: #fafafa;
+  --highlight: #fff4b3;
+}
+
+body { font-family: system-ui, Arial, sans-serif; max-width: 1150px; margin: 20px auto;
+       padding: 0 16px; color: var(--ink); line-height: 1.5; }
+h1 { font-size: 1.6rem; margin-bottom: 4px; }
+h2 { font-size: 1.15rem; margin: 0 0 8px; }
+h3 { font-size: 1rem; margin: 14px 0 6px; }
+
+/* Content boxes */
+section, .card { border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px;
+                 margin-bottom: 16px; background: #fff; }
+section > :first-child, .card > :first-child { margin-top: 0; }
+
+/* Controls */
+button { padding: 6px 12px; margin: 2px; cursor: pointer; border-radius: 4px;
+         border: 1px solid #888; background: #f5f5f5; }
+button.primary { background: var(--accent); color: white; border-color: var(--accent); }
+button:disabled { opacity: 0.4; cursor: default; }
+select, input[type=number] { padding: 4px; }
+
+/* Page navigation (sticky bar of links / tab buttons) */
+nav { position: sticky; top: 0; z-index: 5; background: #fff; padding: 6px 0;
+      margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+nav a { display: inline-block; padding: 6px 12px; margin: 2px; border-radius: 4px;
+        border: 1px solid #888; background: #f5f5f5; color: var(--ink); text-decoration: none;
+        font-size: 0.9rem; }
+nav button { font-size: 0.9rem; }
+nav a:hover, nav button:hover { border-color: var(--accent); }
+nav a.toc { margin-right: 10px; font-weight: bold; color: var(--accent); }
+nav .active { background: var(--accent); color: white; border-color: var(--accent); }
+
+footer { text-align: center; color: var(--muted); font-size: 0.85rem; padding: 16px; }
+
+/* Shared text helpers */
+.m { font-family: "Cambria Math", "Latin Modern Math", "Times New Roman", serif; }
+.hint { color: var(--muted); font-size: 0.9rem; }
+.good { color: var(--good); }
+.error { color: var(--bad); font-weight: bold; }
+.legend span { margin-right: 14px; font-size: 0.85rem; white-space: nowrap; }
+.swatch { display: inline-block; width: 12px; height: 12px; vertical-align: middle;
+          margin-right: 4px; border: 1px solid #999; }

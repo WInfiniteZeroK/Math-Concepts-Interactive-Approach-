@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gaussian &amp; Gauss–Jordan Elimination: Step by Step</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  /* Method selector */
+  .method { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
+  .method label { border: 2px solid #ccc; border-radius: 8px; padding: 6px 12px; cursor: pointer;
+                  max-width: 380px; font-size: 0.9rem; }
+  .method label:has(input:checked) { border-color: #1565c0; background: #e3f2fd; }
+  .method b { font-size: 1rem; }
+
+  /* Input grid */
+  table.grid input { width: 55px; text-align: center; padding: 4px; }
+  table.grid th { font-weight: normal; color: #555; }
+  table.grid td.bar { font-weight: bold; padding: 0 4px; }
+
+  /* Matrix display */
+  table.matrix { border-collapse: collapse; margin: 10px 0; font-size: 1.2rem; }
+  table.matrix th { font-weight: normal; color: #888; font-size: 0.85rem; }
+  table.matrix td { padding: 6px 14px; text-align: center; min-width: 2.2em; }
+  table.matrix td.rlabel { color: #888; font-size: 0.85rem; padding-right: 10px; }
+  /* Square brackets [ ]: the vertical strokes are cell borders,
+     the short horizontal ticks at the corners are pseudo-elements */
+  table.matrix td { position: relative; }
+  table.matrix td.first { border-left: 2px solid #333; }
+  table.matrix td.last  { border-right: 2px solid #333; }
+  table.matrix td.aug   { border-left: 1px solid #777; }      /* augmentation bar | */
+  table.matrix td.br-tl::before, table.matrix td.br-bl::after,
+  table.matrix td.br-tr::before, table.matrix td.br-br::after {
+    content: ""; position: absolute; width: 8px; height: 2px; background: #333; }
+  table.matrix td.br-tl::before { top: 0;    left: -1px; }
+  table.matrix td.br-bl::after  { bottom: 0; left: -1px; }
+  table.matrix td.br-tr::before { top: 0;    right: -1px; }
+  table.matrix td.br-br::after  { bottom: 0; right: -1px; }
+
+  /* Column vectors with square brackets [ ] */
+  .vecline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+             font-size: 1.15rem; margin: 10px 0; font-weight: normal; }
+  .vec { display: inline-flex; flex-direction: column; text-align: center; padding: 3px 9px;
+         border-left: 2px solid #333; border-right: 2px solid #333;
+         background:
+           linear-gradient(#333, #333) left top     / 7px 2px no-repeat,
+           linear-gradient(#333, #333) left bottom  / 7px 2px no-repeat,
+           linear-gradient(#333, #333) right top    / 7px 2px no-repeat,
+           linear-gradient(#333, #333) right bottom / 7px 2px no-repeat; }
+  .vec span { min-width: 1.6em; padding: 1px 0; }
+  .vecline .coef { font-style: italic; }
+  table.matrix td.tag   { font-size: 0.8rem; color: #444; text-align: left;
+                          padding-left: 10px; white-space: nowrap; min-width: 0; }
+
+  /* Highlights */
+  .pivot { display: inline-block; min-width: 1.6em; padding: 2px 4px;
+           border: 2px solid #1565c0; border-radius: 50%; background: #e3f2fd;
+           font-weight: bold; }
+  tr.changed td:not(.rlabel):not(.tag) { background: #fff4b3; }
+  tr.target  td:not(.rlabel):not(.tag) { background: #fff4b3; }
+  tr.source  td:not(.rlabel):not(.tag) { background: #e1f5fe; }
+  tr.bad     td:not(.rlabel):not(.tag) { background: #ffcdd2; }
+  td.newzero { background: #b9f6ca !important; font-weight: bold; }
+  td.freecol { background: #eeeeee; color: #999; }
+  td.outline-elim  { outline: 2px dashed #c62828; outline-offset: -4px; font-weight: bold; }
+  td.outline-pivot { outline: 2px dashed #1565c0; outline-offset: -4px; font-weight: bold; }
+
+  /* Before / after layout */
+  .views { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-start; }
+  .view h3 { margin: 0; font-size: 0.95rem; color: #555; }
+  .arrow { align-self: center; text-align: center; color: #1565c0; min-width: 110px; }
+  .arrow .big { font-size: 2.2rem; line-height: 1; }
+  .arrow .small { font-family: Consolas, monospace; font-size: 0.95rem; font-weight: bold; }
+  .placeholder { width: 260px; min-height: 120px; margin-top: 10px; border: 2px dashed #ccc;
+                 border-radius: 8px; color: #777; display: flex; align-items: center;
+                 justify-content: center; text-align: center; padding: 12px; font-size: 0.9rem; }
+  .calc { font-family: Consolas, monospace; background: #fafafa; border: 1px solid #e5e5e5;
+          padding: 6px 10px; border-radius: 6px; font-size: 0.95rem; overflow-x: auto;
+          white-space: nowrap; margin: 6px 0; }
+
+  .op { font-family: Consolas, monospace; font-size: 1.15rem; color: #1565c0; font-weight: bold; }
+  .stage { display: inline-block; background: #1565c0; color: white; padding: 2px 10px;
+           border-radius: 12px; font-size: 0.85rem; }
+  .stage.backward { background: #6a1b9a; }
+  .stage.stopped  { background: #c62828; }
+  p.bad { color: #c62828; }
+  .final { font-weight: bold; font-size: 1.1rem; background: #f1f8e9; padding: 8px; border-radius: 6px; }
+</style>
+</head>
+<body>
+
+<h1>Gaussian &amp; Gauss–Jordan Elimination: Step by Step</h1>
+<p>Choose a method, enter a system, press <b>Solve</b>, then step through it with <b>Next</b> (or the → key).</p>
+<nav><a class="toc" href="index.html">☰ Table of Contents</a></nav>
+
+<!-- ============ INPUT ============ -->
+<section>
+  <h2>1. Choose the method and enter the augmented matrix [A | b]</h2>
+  <div class="method">
+    <label><input type="radio" name="method" value="gauss" checked>
+      <b>Gaussian elimination</b><br>Forward phase to REF, then back substitution.</label>
+    <label><input type="radio" name="method" value="gj">
+      <b>Gauss–Jordan elimination</b><br>Forward phase to REF, backward phase to RREF, then read off the solution.</label>
+  </div>
+  <label>Example:
+    <select id="exampleSelect"></select>
+  </label>
+  &nbsp; Equations: <input type="number" id="rowsInput" min="1" max="6" value="3" style="width:50px">
+  &nbsp; Variables: <input type="number" id="colsInput" min="1" max="6" value="3" style="width:50px">
+  <button id="resizeBtn">Resize</button>
+  <div id="grid" style="margin-top:10px"></div>
+  <button class="primary" id="solveBtn">Solve</button>
+  <span id="error" class="error"></span>
+</section>
+
+<!-- ============ STEP VIEWER ============ -->
+<section>
+  <h2><span id="sectionTitle">2. Row reduction</span> &nbsp;<span id="stage" class="stage"></span></h2>
+
+  <div class="views">
+    <div class="view" id="beforeView"></div>
+    <div class="arrow" id="arrowView"></div>
+    <div class="view" id="afterView"></div>
+  </div>
+
+  <div id="calc"></div>
+
+  <div class="legend">
+    <span><span class="swatch" style="background:#e3f2fd;border-color:#1565c0"></span>Pivot</span>
+    <span><span class="swatch" style="background:#fff4b3"></span>Row that changes</span>
+    <span><span class="swatch" style="background:#e1f5fe"></span>Pivot row used</span>
+    <span><span class="swatch" style="border:2px dashed #c62828"></span>Entry to eliminate</span>
+    <span><span class="swatch" style="border:2px dashed #1565c0"></span>Entry that becomes pivot / becomes 1</span>
+    <span><span class="swatch" style="background:#b9f6ca"></span>New zero</span>
+    <span><span class="swatch" style="background:#eeeeee"></span>No pivot (free)</span>
+    <span><span class="swatch" style="background:#ffcdd2"></span>Inconsistent row</span>
+  </div>
+  <p class="op" id="op"></p>
+  <p id="why"></p>
+  <button id="firstBtn">⏮ First</button>
+  <button id="prevBtn">◀ Previous</button>
+  <span id="counter"></span>
+  <button id="nextBtn">Next ▶</button>
+  <button id="lastBtn">Last ⏭</button>
+</section>
+
+<!-- ============ RESULTS ============ -->
+<section>
+  <h2 id="resultsTitle">3. Results</h2>
+  <div id="results"></div>
+</section>
+
+<script>
+/* =====================================================================
+   PART A: MATH ENGINE (no display code here)
+   ===================================================================== */
+
+// ---------- A1. Exact fractions ----------
+function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) [a, b] = [b, a % b]; return a || 1; }
+
+class Fraction {
+  constructor(n, d = 1) {
+    if (d === 0) throw new Error("Division by zero");
+    if (d < 0) { n = -n; d = -d; }
+    const g = gcd(n, d);
+    this.n = n / g; this.d = d / g;
+    if (this.n === 0) this.n = 0;               // avoid "-0"
+  }
+  add(o) { return new Fraction(this.n * o.d + o.n * this.d, this.d * o.d); }
+  sub(o) { return new Fraction(this.n * o.d - o.n * this.d, this.d * o.d); }
+  mul(o) { return new Fraction(this.n * o.n, this.d * o.d); }
+  div(o) { return new Fraction(this.n * o.d, this.d * o.n); }
+  neg()  { return new Fraction(-this.n, this.d); }
+  abs()  { return new Fraction(Math.abs(this.n), this.d); }
+  isZero() { return this.n === 0; }
+  isOne()  { return this.n === 1 && this.d === 1; }
+  toString() { return this.d === 1 ? `${this.n}` : `${this.n}/${this.d}`; }
+}
+
+function parseFraction(str) {
+  str = String(str).trim();
+  if (str === "") return new Fraction(0);
+  if (/^-?\d+$/.test(str)) return new Fraction(parseInt(str, 10));
+  if (/^-?\d+\s*\/\s*-?\d+$/.test(str)) {
+    const [a, b] = str.split("/").map(s => parseInt(s, 10));
+    if (b === 0) throw new Error(`"${str}" has a zero denominator`);
+    return new Fraction(a, b);
+  }
+  if (/^-?\d*\.\d+$/.test(str)) {
+    const places = str.split(".")[1].length;
+    return new Fraction(Math.round(parseFloat(str) * 10 ** places), 10 ** places);
+  }
+  throw new Error(`"${str}" is not a valid number (use e.g. 3, -2, 3/4, 0.5)`);
+}
+
+// ---------- A2. Elementary row operations (each returns a NEW matrix) ----------
+function swapRows(M, i, j) {                    // R_i <-> R_j
+  const A = M.map(r => r.slice());
+  [A[i], A[j]] = [A[j], A[i]];
+  return A;
+}
+function scaleRow(M, i, k) {                    // R_i -> k * R_i   (k != 0)
+  if (k.isZero()) throw new Error("Cannot scale a row by 0");
+  return M.map((r, idx) => idx === i ? r.map(v => v.mul(k)) : r.slice());
+}
+function addMultiple(M, i, k, j) {              // R_i -> R_i + k * R_j
+  return M.map((r, idx) => idx === i ? r.map((v, c) => v.add(k.mul(M[j][c]))) : r.slice());
+}
+
+// ---------- Helpers for writing row operations as text ----------
+function coefStr(a) { return a.isOne() ? "" : (a.d === 1 ? `${a}` : `(${a})`); }
+function paren(f)   { return f.n < 0 ? `(${f})` : `${f}`; }
+function replaceOpStr(i, m, p) {                // the operation R_i -> R_i - m R_p
+  return m.n > 0
+    ? `R${i + 1} → R${i + 1} − ${coefStr(m)}R${p + 1}`
+    : `R${i + 1} → R${i + 1} + ${coefStr(m.abs())}R${p + 1}`;
+}
+function scaleOpStr(i, k) {                     // the operation R_i -> k R_i
+  const c = (k.n === -1 && k.d === 1) ? "−" : (k.d === 1 ? `${k}` : `(${k})`);
+  return `R${i + 1} → ${c}R${i + 1}`;
+}
+
+// ---------- A3. Forward phase (Gaussian elimination to REF) ----------
+// Each step has:
+//   kind  : start | info | swap | replace | scale | ref | rref
+//   phase : forward | backward
+// Only "swap", "replace" and "scale" steps change the matrix.
+function forwardEliminate(M, numVars) {
+  let A = M.map(r => r.slice());
+  const steps = [{ kind: "start", phase: "forward", matrix: A, op: "Start",
+                   why: "This is the augmented matrix [A | b].", hl: {} }];
+  const record = (kind, op, why, hl = {}) => steps.push({ kind, phase: "forward", matrix: A, op, why, hl });
+  const pivots = [];
+  let p = 0;                                    // current pivot row
+
+  for (let col = 0; col < numVars && p < A.length; col++) {
+    // Find a nonzero entry at or below row p
+    let r = p;
+    while (r < A.length && A[r][col].isZero()) r++;
+
+    if (r === A.length) {
+      record("info", `No pivot in column ${col + 1}`,
+        `Every entry in column ${col + 1} from row ${p + 1} down is 0, so this column has no pivot. ` +
+        `Its variable will be a FREE variable. Move on to the next column.`,
+        { col, fromRow: p });
+      continue;
+    }
+
+    if (r !== p) {
+      A = swapRows(A, p, r);
+      record("swap", `R${p + 1} ↔ R${r + 1}`,
+        `The pivot position (row ${p + 1}, column ${col + 1}) contains 0, so swap with row ${r + 1}, ` +
+        `which has a nonzero entry in this column.`,
+        { pivot: [p, col], rows: [p, r] });
+    }
+
+    record("info", `Pivot = ${A[p][col]}`,
+      `The pivot for column ${col + 1} is the circled entry in row ${p + 1}. ` +
+      `Next, create zeros in every position BELOW it.`,
+      { pivot: [p, col] });
+
+    for (let i = p + 1; i < A.length; i++) {
+      if (A[i][col].isZero()) continue;
+      const entry = A[i][col], piv = A[p][col], m = entry.div(piv);
+      A = addMultiple(A, i, m.neg(), p);
+      record("replace", replaceOpStr(i, m, p),
+        `Multiplier = entry ÷ pivot = ${entry} ÷ ${paren(piv)} = ${m}. ` +
+        `This makes the entry in row ${i + 1}, column ${col + 1} equal to zero.`,
+        { pivot: [p, col], row: i, newZero: [i, col], mult: m.neg() });
+    }
+    pivots.push([p, col]);
+    p++;                                        // "cover up" this row and continue
+  }
+
+  record("ref", "REF reached ✔",
+    "Every entry below each pivot is zero, and each pivot is to the right of the one above it. " +
+    "The matrix is in Row Echelon Form.",
+    { pivots: [...pivots] });
+  return { steps, pivots, ref: A };
+}
+
+// ---------- A4. Backward phase (Gauss–Jordan: REF to RREF) ----------
+// Work from the bottom pivot upward: scale the pivot to 1, then clear the entries ABOVE it.
+function backwardPhase(A, pivots, numVars, steps) {
+  const record = (kind, op, why, hl = {}) => steps.push({ kind, phase: "backward", matrix: A, op, why, hl });
+
+  for (const [pr, pc] of [...pivots].reverse()) {
+    const pv = A[pr][pc];
+    const hasAbove = A.slice(0, pr).some(row => !row[pc].isZero());
+
+    record("info", `Pivot in row ${pr + 1}, column ${pc + 1}`,
+      (pv.isOne() ? `This pivot already equals 1. ` : `First, scale this row so that the pivot becomes 1. `) +
+      (hasAbove ? `Then create zeros in every position ABOVE it.`
+                : `There are no nonzero entries above it to clear.`),
+      { pivot: [pr, pc] });
+
+    if (!pv.isOne()) {
+      const k = new Fraction(1).div(pv);
+      A = scaleRow(A, pr, k);
+      record("scale", scaleOpStr(pr, k),
+        `Multiply row ${pr + 1} by 1 ÷ pivot = 1 ÷ ${paren(pv)} = ${k}, so that the pivot becomes 1.`,
+        { pivot: [pr, pc], row: pr, mult: k });
+    }
+
+    for (let i = pr - 1; i >= 0; i--) {
+      if (A[i][pc].isZero()) continue;
+      const m = A[i][pc];                       // the pivot is now 1, so multiplier = entry
+      A = addMultiple(A, i, m.neg(), pr);
+      record("replace", replaceOpStr(i, m, pr),
+        `The pivot is 1, so the multiplier is simply the entry above it: ${m}. ` +
+        `This makes the entry in row ${i + 1}, column ${pc + 1} equal to zero.`,
+        { pivot: [pr, pc], row: i, newZero: [i, pc], mult: m.neg() });
+    }
+  }
+
+  record("rref", "RREF reached ✔",
+    "Every pivot equals 1 and is the only nonzero entry in its column. " +
+    "The matrix is in Reduced Row Echelon Form, so the solution can be read off directly.",
+    { pivots: [...pivots] });
+  return A;
+}
+
+// ---------- A5. Consistency check ----------
+function checkConsistency(A, numVars) {
+  for (let i = 0; i < A.length; i++) {
+    const allZero = A[i].slice(0, numVars).every(v => v.isZero());
+    if (allZero && !A[i][numVars].isZero()) return { consistent: false, badRow: i };
+  }
+  return { consistent: true };
+}
+
+// ---------- A6. Full row reduction for either method ----------
+// method: "gauss" (stop at REF) or "gj" (continue to RREF)
+function rowReduce(M, numVars, method) {
+  const fe = forwardEliminate(M, numVars);
+  const cons = checkConsistency(fe.ref, numVars);
+  const refStep = fe.steps[fe.steps.length - 1];
+  let final = fe.ref;
+
+  if (method === "gj") {
+    if (cons.consistent) {
+      refStep.why += " Gaussian elimination would stop here. Gauss–Jordan continues with the BACKWARD phase.";
+      final = backwardPhase(fe.ref, fe.pivots, numVars, fe.steps);
+    } else {
+      refStep.why += ` However, row ${cons.badRow + 1} reads 0 = ${fe.ref[cons.badRow][numVars]}, ` +
+                     "so the system is inconsistent. There is no need to continue to RREF.";
+    }
+  }
+  if (!cons.consistent) fe.steps[fe.steps.length - 1].hl.badRow = cons.badRow;
+  return { steps: fe.steps, pivots: fe.pivots, final, cons };
+}
+
+// ---------- A7. Writing solutions ----------
+// Each variable is stored as { c: constant, t: [coefficients of each parameter] }
+const PARAMS = ["t", "s", "r", "q", "p", "u"];
+
+function formatLinear(terms) {                  // terms: [{coef: Fraction, name: "x" or ""}]
+  let out = "";
+  for (const { coef, name } of terms) {
+    if (coef.isZero()) continue;
+    const a = coef.abs();
+    const body = name ? (a.isOne() ? name : (a.d === 1 ? `${a}${name}` : `(${a})${name}`)) : `${a}`;
+    if (out === "") out = (coef.n < 0 ? "−" : "") + body;
+    else out += (coef.n < 0 ? " − " : " + ") + body;
+  }
+  return out || "0";
+}
+function formatValue(val) {
+  return formatLinear([{ coef: val.c, name: "" }, ...val.t.map((v, m) => ({ coef: v, name: PARAMS[m] }))]);
+}
+function freeColumns(pivots, numVars) {
+  const pivotCols = pivots.map(([, c]) => c);
+  const free = [];
+  for (let c = 0; c < numVars; c++) if (!pivotCols.includes(c)) free.push(c);
+  return free;
+}
+function rowEquation(A, r, from, numVars, names) {
+  const terms = [];
+  for (let j = from; j < numVars; j++) terms.push({ coef: A[r][j], name: names[j] });
+  return `${formatLinear(terms)} = ${A[r][numVars]}`;
+}
+function freeSetup(free, numVars, names) {
+  const x = new Array(numVars), lines = [];
+  free.forEach((f, k) => {
+    x[f] = { c: new Fraction(0), t: free.map((_, m) => new Fraction(m === k ? 1 : 0)) };
+    lines.push(`${names[f]} has no pivot, so it is free. Let ${names[f]} = ${PARAMS[k]}.`);
+  });
+  return { x, lines };
+}
+
+// A7a. Gaussian elimination: back substitution from the REF (bottom row first)
+function backSubstitute(A, pivots, numVars, names) {
+  const free = freeColumns(pivots, numVars);
+  const { x, lines } = freeSetup(free, numVars, names);
+
+  for (const [r, pc] of [...pivots].reverse()) {
+    const equation = rowEquation(A, r, pc, numVars, names);
+    let c = A[r][numVars];
+    let t = free.map(() => new Fraction(0));
+    for (let j = pc + 1; j < numVars; j++) {           // move known terms to the right side
+      const a = A[r][j];
+      if (a.isZero()) continue;
+      c = c.sub(a.mul(x[j].c));
+      t = t.map((v, m) => v.sub(a.mul(x[j].t[m])));
+    }
+    const piv = A[r][pc];
+    x[pc] = { c: c.div(piv), t: t.map(v => v.div(piv)) };
+    lines.push(`Row ${r + 1}: &nbsp; ${equation} &nbsp; ⇒ &nbsp; <b>${names[pc]} = ${formatValue(x[pc])}</b>`);
+  }
+  return { x, free, lines };
+}
+
+// A7b. Gauss–Jordan: read the solution directly from the RREF (no back substitution)
+function readOffRREF(R, pivots, numVars, names) {
+  const free = freeColumns(pivots, numVars);
+  const { x, lines } = freeSetup(free, numVars, names);
+
+  for (const [r, pc] of pivots) {                      // top row first: each row has ONE pivot variable
+    const equation = rowEquation(R, r, pc, numVars, names);
+    x[pc] = { c: R[r][numVars], t: free.map(f => R[r][f].neg()) };
+    const note = free.some(f => !R[r][f].isZero()) ? " (move the free-variable terms to the right)" : "";
+    lines.push(`Row ${r + 1}: &nbsp; ${equation} &nbsp; ⇒ &nbsp; <b>${names[pc]} = ${formatValue(x[pc])}</b>${note}`);
+  }
+  return { x, free, lines };
+}
+
+/* =====================================================================
+   PART B: USER INTERFACE
+   ===================================================================== */
+
+const EXAMPLES = [
+  { name: "Unique solution (lecture example)", vars: 3,
+    rows: [[1, 1, 1, 6], [2, 3, 1, 11], [1, -1, 2, 5]] },
+  { name: "Row swap needed", vars: 3,
+    rows: [[0, 2, 1, 7], [1, 1, 1, 6], [2, 1, 3, 13]] },
+  { name: "Fractions appear", vars: 3,
+    rows: [[2, 1, -1, 8], [-3, -1, 2, -11], [-2, 1, 2, -3]] },
+  { name: "Infinitely many solutions", vars: 3,
+    rows: [[1, 2, -1, 3], [2, 4, 1, 9], [3, 6, 0, 12]] },
+  { name: "No solution", vars: 3,
+    rows: [[1, 1, 1, 3], [1, 2, 3, 6], [2, 3, 4, 10]] },
+  { name: "2 equations, 4 unknowns", vars: 4,
+    rows: [[1, 2, 0, 1, 4], [2, 4, 1, 3, 11]] },
+];
+
+const $ = id => document.getElementById(id);
+let state = null;
+
+function varNames(n) {
+  return n <= 4 ? ["x", "y", "z", "w"].slice(0, n) : Array.from({ length: n }, (_, i) => `x${i + 1}`);
+}
+function currentMethod() {
+  return document.querySelector('input[name="method"]:checked').value;   // "gauss" or "gj"
+}
+
+// ---------- B1. Input grid ----------
+function buildGrid(m, n, data) {
+  const names = varNames(n);
+  let h = '<table class="grid"><tr><td></td>' + names.map(v => `<th>${v}</th>`).join("") +
+          '<td></td><th>b</th></tr>';
+  for (let i = 0; i < m; i++) {
+    h += `<tr><td>R${i + 1}</td>`;
+    for (let j = 0; j <= n; j++) {
+      if (j === n) h += '<td class="bar">|</td>';
+      const val = (data && data[i] && data[i][j] !== undefined) ? data[i][j] : 0;
+      h += `<td><input id="cell-${i}-${j}" value="${val}"></td>`;
+    }
+    h += "</tr>";
+  }
+  $("grid").innerHTML = h + "</table>";
+}
+
+function readRawGrid() {                         // current text in the boxes (used when resizing)
+  const raw = [];
+  document.querySelectorAll("#grid tr").forEach((tr, i) => {
+    if (i === 0) return;
+    raw.push([...tr.querySelectorAll("input")].map(inp => inp.value));
+  });
+  return raw;
+}
+
+function readGrid() {
+  const m = +$("rowsInput").value, n = +$("colsInput").value;
+  const M = [];
+  try {
+    for (let i = 0; i < m; i++) {
+      M.push([]);
+      for (let j = 0; j <= n; j++) M[i].push(parseFraction($(`cell-${i}-${j}`).value));
+    }
+  } catch (e) { $("error").textContent = e.message; return null; }
+  $("error").textContent = "";
+  return { M, numVars: n };
+}
+
+function resizeGrid() {
+  const m = Math.min(6, Math.max(1, +$("rowsInput").value || 1));
+  const n = Math.min(6, Math.max(1, +$("colsInput").value || 1));
+  $("rowsInput").value = m; $("colsInput").value = n;
+  const old = readRawGrid();
+  const oldN = old.length ? old[0].length - 1 : 0;
+  // keep coefficients where possible and keep b in the last column
+  const data = Array.from({ length: m }, (_, i) =>
+    Array.from({ length: n + 1 }, (_, j) => {
+      if (!old[i]) return 0;
+      if (j === n) return old[i][oldN];
+      return j < oldN ? old[i][j] : 0;
+    }));
+  buildGrid(m, n, data);
+}
+
+function loadExample(k) {
+  const ex = EXAMPLES[k];
+  $("rowsInput").value = ex.rows.length;
+  $("colsInput").value = ex.vars;
+  buildGrid(ex.rows.length, ex.vars, ex.rows);
+  solve();
+}
+
+// ---------- B2. Matrix rendering ----------
+// hl   : highlights stored in the step (pivot, changed row, new zero, ...)
+// opts : extra options used only for the "Before" matrix
+//        rowClass {i: "target"|"source"}, rowTag {i: "text"}, outline {pos: [i, j], cls}
+function renderMatrix(A, numVars, hl, opts = {}) {
+  const names = varNames(numVars);
+  const rowClass = opts.rowClass || {};
+  const rowTag = opts.rowTag || null;
+
+  let h = '<table class="matrix"><tr><td></td>' + names.map(v => `<th>${v}</th>`).join("") +
+          "<th>b</th>" + (rowTag ? "<th></th>" : "") + "</tr>";
+
+  A.forEach((row, i) => {
+    const trCls = [];
+    if (hl.row === i || (hl.rows && hl.rows.includes(i))) trCls.push("changed");
+    if (hl.badRow === i) trCls.push("bad");
+    if (rowClass[i]) trCls.push(rowClass[i]);
+    h += `<tr class="${trCls.join(" ")}"><td class="rlabel">R${i + 1}</td>`;
+
+    row.forEach((v, j) => {
+      const cls = [];
+      if (j === 0) cls.push("first");
+      if (j === numVars) cls.push("aug", "last");
+      if (i === 0 && j === 0) cls.push("br-tl");                       // bracket corners
+      if (i === A.length - 1 && j === 0) cls.push("br-bl");
+      if (i === 0 && j === numVars) cls.push("br-tr");
+      if (i === A.length - 1 && j === numVars) cls.push("br-br");
+      if (hl.newZero && hl.newZero[0] === i && hl.newZero[1] === j) cls.push("newzero");
+      if (hl.col === j && i >= hl.fromRow) cls.push("freecol");
+      if (opts.outline && opts.outline.pos[0] === i && opts.outline.pos[1] === j) cls.push(opts.outline.cls);
+      const isPivot = (hl.pivot && hl.pivot[0] === i && hl.pivot[1] === j) ||
+                      (hl.pivots && hl.pivots.some(([r, c]) => r === i && c === j));
+      h += `<td class="${cls.join(" ")}">${isPivot ? `<span class="pivot">${v}</span>` : v}</td>`;
+    });
+
+    if (rowTag) h += `<td class="tag">${rowTag[i] || ""}</td>`;
+    h += "</tr>";
+  });
+  return h + "</table>";
+}
+
+// ---------- B2b. Highlights for the "Before" matrix ----------
+function beforeOptions(step) {
+  const hl = step.hl;
+  if (step.kind === "swap") {
+    const [a, b] = hl.rows, col = hl.pivot[1];
+    return {
+      hl: {},
+      rowClass: { [a]: "target", [b]: "target" },
+      rowTag: { [a]: `↕ moves to row ${b + 1}`, [b]: `↕ moves to row ${a + 1}` },
+      outline: { pos: [b, col], cls: "outline-pivot" },   // this entry becomes the pivot
+    };
+  }
+  if (step.kind === "replace") {
+    const [p, col] = hl.pivot, i = hl.row;
+    return {
+      hl: { pivot: hl.pivot },
+      rowClass: { [p]: "source", [i]: "target" },
+      rowTag: { [p]: "← pivot row (used, not changed)", [i]: "← will change" },
+      outline: { pos: [i, col], cls: "outline-elim" },    // this entry becomes 0
+    };
+  }
+  if (step.kind === "scale") {
+    const [p, col] = hl.pivot;
+    return {
+      hl: {},
+      rowClass: { [p]: "target" },
+      rowTag: { [p]: `← will be multiplied by ${hl.mult}` },
+      outline: { pos: [p, col], cls: "outline-pivot" },   // this pivot becomes 1
+    };
+  }
+  return null;
+}
+
+// ---------- B2c. Row arithmetic line ----------
+function rowStr(r, n) { return `[ ${r.slice(0, n).join("  ")} | ${r[n]} ]`; }
+
+function calcHTML(step, prevMatrix, n) {
+  if (step.kind === "replace") {
+    const i = step.hl.row, p = step.hl.pivot[0], k = step.hl.mult;
+    return `<div class="calc">R${i + 1} + ${paren(k)} × R${p + 1} = ` +
+           `${rowStr(prevMatrix[i], n)} + ${paren(k)} × ${rowStr(prevMatrix[p], n)} = ` +
+           `<b>${rowStr(step.matrix[i], n)}</b></div>`;
+  }
+  if (step.kind === "scale") {
+    const i = step.hl.row, k = step.hl.mult;
+    return `<div class="calc">${paren(k)} × R${i + 1} = ${paren(k)} × ${rowStr(prevMatrix[i], n)} = ` +
+           `<b>${rowStr(step.matrix[i], n)}</b></div>`;
+  }
+  if (step.kind === "swap") {
+    const [a, b] = step.hl.rows;
+    return `<div class="calc">Rows ${a + 1} and ${b + 1} exchange places. No entries change value.</div>`;
+  }
+  return "";
+}
+
+// ---------- B3. Solve and display ----------
+function solve() {
+  const input = readGrid();
+  if (!input) return;
+  const { M, numVars } = input;
+  const method = currentMethod();
+  const names = varNames(numVars);
+  const rr = rowReduce(M, numVars, method);
+  let answer = null;
+  if (rr.cons.consistent) {
+    answer = method === "gj" ? readOffRREF(rr.final, rr.pivots, numVars, names)
+                             : backSubstitute(rr.final, rr.pivots, numVars, names);
+  }
+  state = { steps: rr.steps, idx: 0, numVars, names, final: rr.final, cons: rr.cons, method, answer };
+  $("sectionTitle").textContent = method === "gj"
+    ? "2. Gauss–Jordan elimination (forward phase → REF, then backward phase → RREF)"
+    : "2. Gaussian elimination (forward elimination → REF)";
+  $("resultsTitle").textContent = method === "gj"
+    ? "3. Consistency check and reading off the solution"
+    : "3. Consistency check, back substitution and solution";
+  show();
+}
+
+const PLACEHOLDER = {
+  start: "This is the starting matrix.<br>Press <b>Next ▶</b> to see the first step.",
+  info:  "No row operation in this step,<br>so the matrix has not changed.<br>Read the explanation below.",
+  ref:   "End of the forward phase.<br>No row operation in this step.",
+  rref:  "No further row operations<br>are needed.",
+};
+
+function stageText(s, last) {
+  if (last) {
+    if (!state.cons.consistent) return "Stopped: inconsistent";
+    return state.method === "gj" ? "RREF reached" : "REF reached";
+  }
+  return s.phase === "backward" ? "Backward phase → RREF" : "Forward phase → REF";
+}
+
+function show() {
+  if (!state) return;
+  const s = state.steps[state.idx];
+  const n = state.numVars;
+  const last = state.idx === state.steps.length - 1;
+  const changes = s.kind === "swap" || s.kind === "replace" || s.kind === "scale";
+
+  // Before panel + arrow
+  if (changes) {
+    const prev = state.steps[state.idx - 1];
+    const o = beforeOptions(s);
+    $("beforeView").innerHTML = `<h3>Before (step ${state.idx})</h3>` + renderMatrix(prev.matrix, n, o.hl, o);
+    $("arrowView").innerHTML = `<div class="small">${s.op}</div><div class="big">⟹</div>`;
+    $("calc").innerHTML = calcHTML(s, prev.matrix, n);
+  } else {
+    $("beforeView").innerHTML = `<h3>Before</h3><div class="placeholder">${PLACEHOLDER[s.kind]}</div>`;
+    $("arrowView").innerHTML = "";
+    $("calc").innerHTML = "";
+  }
+
+  // After / current panel
+  $("afterView").innerHTML = `<h3>${changes ? "After" : "Current matrix"} (step ${state.idx + 1})</h3>` +
+                             renderMatrix(s.matrix, n, s.hl);
+
+  $("op").textContent = s.op;
+  $("why").textContent = s.why;
+  $("counter").textContent = `Step ${state.idx + 1} of ${state.steps.length}`;
+  const st = $("stage");
+  st.textContent = stageText(s, last);
+  st.className = "stage" + (s.phase === "backward" ? " backward" : "") +
+                 (last && !state.cons.consistent ? " stopped" : "");
+  $("firstBtn").disabled = $("prevBtn").disabled = state.idx === 0;
+  $("nextBtn").disabled = $("lastBtn").disabled = last;
+  $("results").innerHTML = last ? resultsHTML()
+    : `<em>Keep pressing Next. The results appear once the matrix reaches ${state.method === "gj" ? "RREF" : "REF"}.</em>`;
+}
+
+// ---------- B3b. Column vectors in square brackets ----------
+function vecHTML(entries) {
+  return '<span class="vec">' +
+         entries.map(e => `<span>${String(e).replace("-", "−")}</span>`).join("") + "</span>";
+}
+
+function opCounts() {
+  const c = { forward: 0, backward: 0 };
+  state.steps.forEach(s => { if (["swap", "replace", "scale"].includes(s.kind)) c[s.phase]++; });
+  return c;
+}
+
+function resultsHTML() {
+  const { cons, answer, names, numVars, final, method } = state;
+  let h = "<h3>Consistency check</h3>";
+  if (!cons.consistent) {
+    h += `<p class="bad">✘ Row ${cons.badRow + 1} reads 0 = ${final[cons.badRow][numVars]}, which is impossible.</p>`;
+    h += `<p class="final">No solution: the system is inconsistent.</p>`;
+  } else {
+    h += `<p class="good">✔ No row has the form [0 … 0 | c] with c ≠ 0, so the system is consistent.</p>`;
+    h += method === "gj"
+      ? "<h3>Read the solution directly from the RREF (no back substitution needed)</h3>"
+      : "<h3>Back substitution (start from the bottom pivot row)</h3>";
+    h += "<ol>" + answer.lines.map(l => `<li>${l}</li>`).join("") + "</ol>";
+
+    const xVec = vecHTML(names);                         // [x; y; z]
+    if (answer.free.length === 0) {
+      h += `<div class="final">Unique solution:<div class="vecline">${xVec} = ${vecHTML(answer.x.map(v => v.c))}</div></div>`;
+    } else {
+      // Vector (parametric) form:  x = p + t v1 + s v2 + ...
+      const ps = answer.free.map((_, k) => PARAMS[k]);
+      const parts = [];
+      const p = answer.x.map(v => v.c);
+      if (p.some(c => !c.isZero())) parts.push(vecHTML(p));              // omit p if it is the zero vector
+      ps.forEach((name, m) => parts.push(`<span class="coef">${name}</span>${vecHTML(answer.x.map(v => v.t[m]))}`));
+      h += `<div class="final">Infinitely many solutions (${ps.length} free variable${ps.length > 1 ? "s" : ""}), in vector form:` +
+           `<div class="vecline">${xVec} = ${parts.join(" + ")}</div>` +
+           `where ${ps.join(", ")} ${ps.length > 1 ? "are any real numbers" : "is any real number"}.</div>`;
+    }
+  }
+
+  const c = opCounts();
+  h += "<h3>Row operations used</h3><p>";
+  h += `Forward phase: <b>${c.forward}</b>`;
+  if (method === "gj") h += ` &nbsp;|&nbsp; Backward phase: <b>${c.backward}</b> &nbsp;|&nbsp; Total: <b>${c.forward + c.backward}</b>`;
+  h += "</p>";
+  if (method === "gauss" && cons.consistent)
+    h += "<p class='hint'>Tip: switch the method to <b>Gauss–Jordan</b> to continue this matrix to RREF and compare.</p>";
+  return h;
+}
+
+// ---------- B4. Wire up the controls ----------
+EXAMPLES.forEach((ex, k) => $("exampleSelect").add(new Option(ex.name, k)));
+$("exampleSelect").onchange = e => loadExample(+e.target.value);
+document.querySelectorAll('input[name="method"]').forEach(r => r.onchange = solve);
+$("resizeBtn").onclick = resizeGrid;
+$("solveBtn").onclick = solve;
+$("firstBtn").onclick = () => { state.idx = 0; show(); };
+$("prevBtn").onclick  = () => { state.idx--; show(); };
+$("nextBtn").onclick  = () => { state.idx++; show(); };
+$("lastBtn").onclick  = () => { state.idx = state.steps.length - 1; show(); };
+document.addEventListener("keydown", e => {
+  if (!state || e.target.tagName === "INPUT") return;
+  if (e.key === "ArrowRight" && state.idx < state.steps.length - 1) { state.idx++; show(); }
+  if (e.key === "ArrowLeft" && state.idx > 0) { state.idx--; show(); }
+});
+
+loadExample(0);                                   // start with the lecture example
+
+</script>
+</body>
+</html>
