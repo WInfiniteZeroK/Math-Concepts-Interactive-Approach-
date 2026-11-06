@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Riemann Sums – Interactive Lesson</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  section { scroll-margin-top: 60px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 300px; gap: 16px; }
+  @media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+  canvas { width: 100%; display: block; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+  #plot { height: 420px; cursor: crosshair; }
+  #conv { height: 280px; }
+  .ctl { margin-bottom: 10px; }
+  .ctl label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 2px; }
+  .ctl input[type=number] { width: 80px; }
+  .ctl input[type=range] { width: 100%; }
+  .methods label { display: block; font-size: 0.92rem; color: var(--ink); cursor: pointer; }
+  table.read { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+  table.read td { padding: 3px 4px; border-bottom: 1px solid #eee; }
+  table.read td:last-child { text-align: right; font-family: ui-monospace, Consolas, monospace; }
+  .big { font-size: 1.15rem; font-weight: bold; color: var(--accent); }
+  #sigma { background: var(--soft); border: 1px dashed var(--border); border-radius: 6px;
+           padding: 8px 10px; overflow-x: auto; white-space: nowrap; }
+  #sigma div { margin: 4px 0; }
+  #sigma .res { color: var(--accent); }
+  #tip { position: fixed; pointer-events: none; background: #222; color: #fff; font-size: 0.8rem;
+         padding: 5px 8px; border-radius: 4px; display: none; z-index: 20; line-height: 1.35; }
+  .formula { background: var(--accent-soft); border-left: 4px solid var(--accent); padding: 10px 12px;
+             border-radius: 4px; margin: 8px 0; font-size: 1.1rem; text-align: center; overflow-x: auto; }
+  .apps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .apps div { background: var(--soft); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; font-size: 0.92rem; }
+  .q { border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; }
+  .q p.stem { margin: 0 0 6px; font-weight: 600; }
+  .q label { display: block; padding: 4px 6px; border-radius: 4px; cursor: pointer; }
+  .q label:hover { background: var(--soft); }
+  .q label.right { background: #e8f5e9; }
+  .q label.wrong { background: #ffebee; }
+  .fb { margin-top: 6px; font-size: 0.9rem; display: none; }
+  #score { font-size: 1.1rem; font-weight: bold; }
+  .task { background: var(--highlight); padding: 6px 10px; border-radius: 4px; font-size: 0.92rem; margin: 6px 0; }
+  .explain { margin-top: 6px; }
+  .explain summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: 0.88rem; }
+  .explain[open] { background: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px; }
+  .explain p { margin: 6px 0; }
+  table.mini { border-collapse: collapse; margin: 4px 0; font-size: 0.88rem; }
+  table.mini th, table.mini td { border: 1px solid var(--border); padding: 3px 10px; text-align: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Riemann Sums: Area by Rectangles</h1>
+  <p>Single Variable Calculus · From approximating sums to the definite integral</p>
+</header>
+<nav>
+  <a class="toc" href="index.html">☰ Table of Contents</a>
+  <a href="#idea">1 · Idea</a>
+  <a href="#explore">2 · Explore</a>
+  <a href="#converge">3 · Convergence</a>
+  <a href="#apps">4 · Why it matters</a>
+  <a href="#quiz">5 · Check quiz</a>
+</nav>
+<main>
+
+<section id="idea">
+  <h2>1. The idea</h2>
+  <p>We want the (signed) area between the graph of <math><mi>f</mi></math> and the <math><mi>x</mi></math>-axis over
+     <math><mo>[</mo><mi>a</mi><mo>,</mo><mi>b</mi><mo>]</mo></math>.
+     Curved regions are hard; rectangles are easy. So:</p>
+  <ol>
+    <li>Split <math><mo>[</mo><mi>a</mi><mo>,</mo><mi>b</mi><mo>]</mo></math> into <math><mi>n</mi></math> equal subintervals of width
+        <math><mi mathvariant="normal">Δ</mi><mi>x</mi><mo>=</mo><mfrac><mrow><mi>b</mi><mo>−</mo><mi>a</mi></mrow><mi>n</mi></mfrac></math>,
+        with endpoints
+        <math><msub><mi>x</mi><mi>i</mi></msub><mo>=</mo><mi>a</mi><mo>+</mo><mi>i</mi><mspace width="0.1em"/><mi mathvariant="normal">Δ</mi><mi>x</mi><mo>,</mo><mspace width="0.4em"/><mi>i</mi><mo>=</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>,</mo><mo>…</mo><mo>,</mo><mi>n</mi></math>.</li>
+    <li>In each subinterval <math><mo>[</mo><msub><mi>x</mi><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>x</mi><mi>i</mi></msub><mo>]</mo></math>
+        pick a <b>sample point</b> <math><msubsup><mi>x</mi><mi>i</mi><mo>*</mo></msubsup></math> (left end, right end, midpoint, …).</li>
+    <li>Build a rectangle of height <math><mi>f</mi><mo stretchy="false">(</mo><msubsup><mi>x</mi><mi>i</mi><mo>*</mo></msubsup><mo stretchy="false">)</mo></math> and add up the areas.</li>
+  </ol>
+  <div class="formula">
+    <math displaystyle="true">
+      <msub><mi>S</mi><mi>n</mi></msub><mo>=</mo>
+      <munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover>
+      <mi>f</mi><mo stretchy="false">(</mo><msubsup><mi>x</mi><mi>i</mi><mo>*</mo></msubsup><mo stretchy="false">)</mo><mspace width="0.17em"/><mi mathvariant="normal">Δ</mi><mi>x</mi>
+      <mspace width="1.5em"/><mo>⟶</mo><mspace width="1.5em"/>
+      <msubsup><mo>∫</mo><mi>a</mi><mi>b</mi></msubsup><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mspace width="0.17em"/><mi>d</mi><mi>x</mi>
+      <mo>=</mo>
+      <munder><mo movablelimits="false">lim</mo><mrow><mi>n</mi><mo>→</mo><mi>∞</mi></mrow></munder>
+      <munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover>
+      <mi>f</mi><mo stretchy="false">(</mo><msubsup><mi>x</mi><mi>i</mi><mo>*</mo></msubsup><mo stretchy="false">)</mo><mspace width="0.17em"/><mi mathvariant="normal">Δ</mi><mi>x</mi>
+    </math>
+  </div>
+  <p class="hint">Rectangles below the axis contribute <b>negative</b> area — the Riemann sum measures <i>signed</i> area.</p>
+</section>
+
+<section id="explore">
+  <h2>2. Explore</h2>
+  <div class="grid2">
+    <div>
+      <canvas id="plot"></canvas>
+      <div class="legend" style="margin-top:6px">
+        <span><i class="swatch" style="background:rgba(21,101,192,.35)"></i>positive contribution</span>
+        <span><i class="swatch" style="background:rgba(198,40,40,.35)"></i>negative contribution</span>
+        <span><i class="swatch" style="background:#6a1b9a;border-radius:50%"></i>sample point <math><msubsup><mi>x</mi><mi>i</mi><mo>*</mo></msubsup></math></span>
+        <span class="hint">Hover a rectangle for its details.</span>
+      </div>
+      <h3>Sum written out</h3>
+      <div id="sigma"></div>
+    </div>
+    <div>
+      <div class="ctl">
+        <label>Function</label>
+        <select id="fn" style="width:100%"></select>
+      </div>
+      <div class="ctl" style="display:flex;gap:10px">
+        <div><label><math><mi>a</mi></math></label><input type="number" id="a" step="0.5"></div>
+        <div><label><math><mi>b</mi></math></label><input type="number" id="b" step="0.5"></div>
+      </div>
+      <div class="ctl">
+        <label>Number of subintervals <math><mi>n</mi><mo>=</mo></math> <b id="nval">4</b></label>
+        <input type="range" id="n" min="1" max="100" value="4">
+        <div>
+          <button id="nminus">−1</button><button id="nplus">+1</button>
+          <button id="ndouble">×2</button><button id="anim" class="primary">▶ Animate</button>
+        </div>
+      </div>
+      <div class="ctl methods">
+        <label style="color:var(--muted);font-size:.85rem">Sample point rule</label>
+        <label><input type="radio" name="m" value="L" checked> Left endpoint (<math><msub><mi>L</mi><mi>n</mi></msub></math>)</label>
+        <label><input type="radio" name="m" value="R"> Right endpoint (<math><msub><mi>R</mi><mi>n</mi></msub></math>)</label>
+        <label><input type="radio" name="m" value="M"> Midpoint (<math><msub><mi>M</mi><mi>n</mi></msub></math>)</label>
+        <label><input type="radio" name="m" value="rand"> Random point <button id="reroll" style="font-size:.75rem;padding:1px 6px">re-roll</button></label>
+        <label><input type="radio" name="m" value="T"> Trapezoid (<math><msub><mi>T</mi><mi>n</mi></msub></math>)</label>
+      </div>
+      <table class="read">
+        <tr><td><math><mi mathvariant="normal">Δ</mi><mi>x</mi></math></td><td id="rdx"></td></tr>
+        <tr><td>Riemann sum <math><msub><mi>S</mi><mi>n</mi></msub></math></td><td id="rs" class="big"></td></tr>
+        <tr><td>Exact <math><msubsup><mo>∫</mo><mi>a</mi><mi>b</mi></msubsup><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mspace width="0.17em"/><mi>d</mi><mi>x</mi></math></td><td id="rex"></td></tr>
+        <tr><td>Error <math><msub><mi>S</mi><mi>n</mi></msub><mo>−</mo><mtext>exact</mtext></math></td><td id="rerr"></td></tr>
+        <tr><td>Relative error</td><td id="rrel"></td></tr>
+      </table>
+      <p id="warn" class="error" style="font-size:.85rem"></p>
+    </div>
+  </div>
+  <h3>Try these <button id="toggleEx" style="font-size:.8rem;margin-left:8px">Show all explanations</button></h3>
+  <p class="hint">Try each one in the explorer first, then open the explanation to check your reasoning.</p>
+  <div class="task">① <math><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><msup><mi>x</mi><mn>2</mn></msup></math> on
+    <math><mo>[</mo><mn>0</mn><mo>,</mo><mn>2</mn><mo>]</mo></math>: compare
+    <math><msub><mi>L</mi><mn>4</mn></msub></math> and <math><msub><mi>R</mi><mn>4</mn></msub></math>.
+    Which overestimates? Why does it depend on <math><mi>f</mi></math> being increasing?
+    <details class="explain"><summary>Show explanation</summary>
+      <p>With <math><mi mathvariant="normal">Δ</mi><mi>x</mi><mo>=</mo><mn>0.5</mn></math>:
+        <math><msub><mi>L</mi><mn>4</mn></msub><mo>=</mo><mn>0.5</mn><mo>·</mo><mo stretchy="false">(</mo><mn>0</mn><mo>+</mo><mn>0.25</mn><mo>+</mo><mn>1</mn><mo>+</mo><mn>2.25</mn><mo stretchy="false">)</mo><mo>=</mo><mn>1.75</mn></math> and
+        <math><msub><mi>R</mi><mn>4</mn></msub><mo>=</mo><mn>0.5</mn><mo>·</mo><mo stretchy="false">(</mo><mn>0.25</mn><mo>+</mo><mn>1</mn><mo>+</mo><mn>2.25</mn><mo>+</mo><mn>4</mn><mo stretchy="false">)</mo><mo>=</mo><mn>3.75</mn></math>,
+        while the exact area is <math><mfrac><mn>8</mn><mn>3</mn></mfrac><mo>≈</mo><mn>2.667</mn></math>.
+        So <math><msub><mi>L</mi><mn>4</mn></msub></math> underestimates and <math><msub><mi>R</mi><mn>4</mn></msub></math> overestimates.</p>
+      <p>Because <math><mi>f</mi></math> is increasing, the left endpoint gives the <i>smallest</i> value on each subinterval and the right endpoint the <i>largest</i>.
+        Every left rectangle lies under the curve and every right rectangle reaches above it. For a decreasing function the roles swap.
+        If <math><mi>f</mi></math> goes up and down, neither rule is guaranteed to over- or underestimate.</p>
+    </details>
+  </div>
+  <div class="task">② Switch to <math><mi>sin</mi><mo>⁡</mo><mspace width="0.17em"/><mi>x</mi></math> on
+    <math><mo>[</mo><mn>0</mn><mo>,</mo><mn>2</mn><mi>π</mi><mo>]</mo></math>. Why is the sum so close to 0 even with large rectangles?
+    <details class="explain"><summary>Show explanation</summary>
+      <p>On <math><mo>[</mo><mn>0</mn><mo>,</mo><mi>π</mi><mo>]</mo></math> the graph is above the axis; on <math><mo>[</mo><mi>π</mi><mo>,</mo><mn>2</mn><mi>π</mi><mo>]</mo></math> it is the mirror image below the axis.
+        Each positive (blue) rectangle is matched by a negative (red) rectangle of the same size, so they cancel.</p>
+      <p>The sum is (up to rounding) exactly 0 for every <math><mi>n</mi></math>, and so is the exact integral:
+        <math><msubsup><mo>∫</mo><mn>0</mn><mrow><mn>2</mn><mi>π</mi></mrow></msubsup><mi>sin</mi><mo>⁡</mo><mspace width="0.17em"/><mi>x</mi><mspace width="0.17em"/><mi>d</mi><mi>x</mi><mo>=</mo><mn>0</mn></math>.
+        This is <i>signed</i> area. The total geometric area, counting both humps as positive, is 4.</p>
+    </details>
+  </div>
+  <div class="task">③ Choose any function and note the error at <math><mi>n</mi><mo>=</mo><mn>10</mn></math> and
+    <math><mi>n</mi><mo>=</mo><mn>20</mn></math> for Left vs Midpoint. What happens to each error when <math><mi>n</mi></math> doubles?
+    <details class="explain"><summary>Show explanation</summary>
+      <p>Example with <math><msup><mi>x</mi><mn>2</mn></msup></math> on <math><mo>[</mo><mn>0</mn><mo>,</mo><mn>2</mn><mo>]</mo></math>:</p>
+      <table class="mini">
+        <tr><th></th><th><math><mi>n</mi><mo>=</mo><mn>10</mn></math></th><th><math><mi>n</mi><mo>=</mo><mn>20</mn></math></th><th>ratio</th></tr>
+        <tr><td>Left error</td><td>−0.3867</td><td>−0.1967</td><td>≈ 2</td></tr>
+        <tr><td>Midpoint error</td><td>−0.00667</td><td>−0.00167</td><td>≈ 4</td></tr>
+      </table>
+      <p>Doubling <math><mi>n</mi></math> roughly <b>halves</b> the Left error but <b>quarters</b> the Midpoint error.
+        Left/Right errors behave like <math><mfrac><mi>C</mi><mi>n</mi></mfrac></math>; Midpoint errors behave like <math><mfrac><mi>C</mi><msup><mi>n</mi><mn>2</mn></msup></mfrac></math>.
+        The midpoint wins because, on each small piece, the part of the rectangle that sits above the curve almost cancels the part that sits below it.
+        Section 3 shows this as the slopes −1 and −2 on the log–log plot.</p>
+    </details>
+  </div>
+</section>
+
+<section id="converge">
+  <h2>3. How fast do the sums converge?</h2>
+  <p>Log–log plot of <math><mo>|</mo><msub><mi>S</mi><mi>n</mi></msub><mo>−</mo><mtext>exact</mtext><mo>|</mo></math>
+     against <math><mi>n</mi></math> (<math><mi>n</mi><mo>=</mo><mn>1</mn><mo>,</mo><mo>…</mo><mo>,</mo><mn>100</mn></math>) for the current function and interval.
+     A straight line of slope <math><mo>−</mo><mi>p</mi></math> means the error behaves like
+     <math><mi>C</mi><mo>/</mo><msup><mi>n</mi><mi>p</mi></msup></math>.</p>
+  <canvas id="conv"></canvas>
+  <div class="legend" style="margin-top:6px">
+    <span><i class="swatch" style="background:#1565c0"></i>Left</span>
+    <span><i class="swatch" style="background:#ef6c00"></i>Right</span>
+    <span><i class="swatch" style="background:#2e7d32"></i>Midpoint</span>
+    <span><i class="swatch" style="background:#6a1b9a"></i>Trapezoid</span>
+    <span class="hint">Dashed grey line marks your current <math><mi>n</mi></math>.</span>
+  </div>
+  <p class="hint">Observation: Left/Right errors shrink like <math><mn>1</mn><mo>/</mo><mi>n</mi></math> (double <math><mi>n</mi></math> → error halves);
+     Midpoint/Trapezoid shrink like <math><mn>1</mn><mo>/</mo><msup><mi>n</mi><mn>2</mn></msup></math> (double <math><mi>n</mi></math> → error ÷ 4) for smooth functions.
+     This is why numerical software never uses plain left sums.</p>
+</section>
+
+<section id="apps">
+  <h2>4. Why it matters in your field</h2>
+  <div class="apps">
+    <div><b>Computer science / AI</b><br>Numerical integration in code is literally a Riemann sum loop. Expected values, loss over continuous data, and rendering (light integrated over a pixel) all rely on it.</div>
+    <div><b>Architecture &amp; design</b><br>Area of an irregular floor plate or façade from measured offsets: slice into strips, add up strip areas.</div>
+    <div><b>Engineering</b><br>Distance from sampled velocity data, work from a force sensor, total energy from a power meter reading every second.</div>
+    <div><b>Economics &amp; social sciences</b><br>Consumer surplus, total revenue from a marginal revenue curve, and the Gini coefficient (area under a Lorenz curve).</div>
+  </div>
+</section>
+
+<section id="quiz">
+  <h2>5. Check quiz</h2>
+  <p class="hint">Six quick questions. Pick an answer for each, then press <b>Check answers</b>. The concepts stay the same, but the numbers and scenarios change with every <b>New questions</b> or page reload.</p>
+  <div id="quizbox"></div>
+  <button class="primary" id="check">Check answers</button>
+  <button id="reset">Try again</button>
+  <button id="newq">New questions</button>
+  <span id="score" style="margin-left:10px"></span>
+</section>
+
+</main>
+<footer>Riemann Sums · Interactive lesson for single variable calculus · Works offline, no external libraries · Math typeset with native MathML</footer>
+<div id="tip"></div>
+
+<script>
+// ---------- MathML helpers ----------
+const m    = s => `<math>${s}</math>`;
+const md   = s => `<math displaystyle="true">${s}</math>`;
+const mi   = s => `<mi>${s}</mi>`;
+const mn   = s => `<mn>${s}</mn>`;
+const mo   = s => "()[]|".includes(s) ? `<mo stretchy="false">${s}</mo>` : `<mo>${s}</mo>`;
+const moS  = s => `<mo>${s}</mo>`;   // stretchy, for brackets around fractions
+const row  = (...a) => `<mrow>${a.join("")}</mrow>`;
+const sub  = (b, s) => `<msub>${b}${s}</msub>`;
+const sup  = (b, s) => `<msup>${b}${s}</msup>`;
+const frac = (a, b) => `<mfrac>${a}${b}</mfrac>`;
+const sp   = `<mspace width="0.17em"/>`;
+const DX   = `<mi mathvariant="normal">Δ</mi><mi>x</mi>`;
+const ivl  = (a, b) => row(mo("["), a, mo(","), b, mo("]"));
+const integ = (a, b, f) => `<msubsup><mo>∫</mo>${a}${b}</msubsup>${f}${sp}<mi>d</mi><mi>x</mi>`;
+const sumTo = top => `<munderover><mo>∑</mo>${row(mi("i"), mo("="), mn(1))}${top}</munderover>`;
+const fof  = arg => row(mi("f"), mo("("), arg, mo(")"));
+
+// ---------- Functions ----------
+const FUNCS = {
+  sq:   { label: "f(x) = x²",        f: x => x*x,            F: x => x**3/3,              a: 0, b: 2 },
+  cube: { label: "f(x) = x³ − 3x",   f: x => x**3 - 3*x,     F: x => x**4/4 - 1.5*x*x,    a: -1, b: 2.5 },
+  sin:  { label: "f(x) = sin x",     f: Math.sin,            F: x => -Math.cos(x),        a: 0, b: +(2*Math.PI).toFixed(4) },
+  exp:  { label: "f(x) = eˣ",        f: Math.exp,            F: Math.exp,                 a: 0, b: 1 },
+  sqrt: { label: "f(x) = √x",        f: Math.sqrt,           F: x => (2/3)*x**1.5,        a: 0, b: 4, dmin: 0 },
+  inv:  { label: "f(x) = 1/x",       f: x => 1/x,            F: Math.log,                 a: 1, b: 4, dmin: 0.05 },
+  bump: { label: "f(x) = 4 − x²",    f: x => 4 - x*x,        F: x => 4*x - x**3/3,        a: -2, b: 3 },
+};
+
+const $ = id => document.getElementById(id);
+const fnSel = $("fn");
+for (const k in FUNCS) { const o = document.createElement("option"); o.value = k; o.textContent = FUNCS[k].label; fnSel.appendChild(o); }
+
+let state = { fn: "sq", a: 0, b: 2, n: 4, m: "L" };
+let randFrac = [];
+function reroll() { randFrac = Array.from({ length: 1000 }, () => Math.random()); }
+reroll();
+
+function fmt(v, d = 5) {
+  if (!isFinite(v)) return "—";
+  if (v !== 0 && (Math.abs(v) < 1e-4 || Math.abs(v) >= 1e6)) return v.toExponential(3);
+  return (+v.toFixed(d)).toString();
+}
+// number as MathML (proper minus sign, ×10^k for scientific notation)
+function mnum(v, d = 4) {
+  const t = fmt(v, d);
+  if (t === "—") return "<mtext>—</mtext>";
+  const neg = t.startsWith("-"), body = neg ? t.slice(1) : t;
+  let out;
+  if (body.includes("e")) {
+    const [man, e] = body.split("e"), k = parseInt(e, 10);
+    out = mn(man) + mo("×") + sup(mn(10), k < 0 ? row(mo("−"), mn(-k)) : mn(k));
+  } else out = mn(body);
+  return neg ? row(mo("−"), out) : row(out);
+}
+const term = v => v < 0 ? row(mo("("), mnum(v), mo(")")) : mnum(v);
+
+// sample point & height for subinterval i under rule m
+function pieceInfo(f, a, dx, i, m) {
+  const xl = a + i*dx, xr = xl + dx;
+  if (m === "L") return { xs: xl, h: f(xl) };
+  if (m === "R") return { xs: xr, h: f(xr) };
+  if (m === "M") return { xs: (xl+xr)/2, h: f((xl+xr)/2) };
+  if (m === "rand") { const x = xl + randFrac[i % randFrac.length]*dx; return { xs: x, h: f(x) }; }
+  return { xs: null, h: (f(xl)+f(xr))/2 }; // trapezoid
+}
+
+function riemann(f, a, b, n, m) {
+  const dx = (b-a)/n; let s = 0;
+  for (let i = 0; i < n; i++) s += pieceInfo(f, a, dx, i, m).h * dx;
+  return s;
+}
+
+// ---------- Canvas helpers ----------
+function setupCanvas(c) {
+  const r = window.devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+  c.width = w*r; c.height = h*r;
+  const ctx = c.getContext("2d"); ctx.setTransform(r, 0, 0, r, 0, 0);
+  return { ctx, w, h };
+}
+function niceStep(range) {
+  const raw = range/8, p = Math.pow(10, Math.floor(Math.log10(raw))), mm = raw/p;
+  return (mm < 1.5 ? 1 : mm < 3.5 ? 2 : mm < 7.5 ? 5 : 10) * p;
+}
+
+let view = null, rects = [];
+
+function drawPlot() {
+  const c = $("plot"), { ctx, w, h } = setupCanvas(c);
+  const F = FUNCS[state.fn], f = F.f, { a, b, n, m } = state;
+  const pad = 0.12*(b-a);
+  let xmin = a - pad, xmax = b + pad;
+  if (F.dmin !== undefined) xmin = Math.max(xmin, F.dmin);
+  let ymin = 0, ymax = 0;
+  for (let k = 0; k <= 400; k++) { const x = xmin + (xmax-xmin)*k/400, y = f(x); if (isFinite(y)) { ymin = Math.min(ymin, y); ymax = Math.max(ymax, y); } }
+  const yp = 0.1*(ymax-ymin || 1); ymin -= yp; ymax += yp;
+  const L = 44, Rm = 12, T = 12, B = 28;
+  const X = x => L + (x-xmin)/(xmax-xmin)*(w-L-Rm);
+  const Y = y => T + (ymax-y)/(ymax-ymin)*(h-T-B);
+  view = { X, Y, xmin, xmax, L, Rm, w };
+
+  ctx.font = "11px system-ui"; ctx.fillStyle = "#777"; ctx.strokeStyle = "#eee"; ctx.lineWidth = 1;
+  const sx = niceStep(xmax-xmin), sy = niceStep(ymax-ymin);
+  for (let x = Math.ceil(xmin/sx)*sx; x <= xmax; x += sx) {
+    ctx.beginPath(); ctx.moveTo(X(x), T); ctx.lineTo(X(x), h-B); ctx.stroke();
+    ctx.textAlign = "center"; ctx.fillText(+x.toFixed(4), X(x), h-B+14);
+  }
+  for (let y = Math.ceil(ymin/sy)*sy; y <= ymax; y += sy) {
+    ctx.beginPath(); ctx.moveTo(L, Y(y)); ctx.lineTo(w-Rm, Y(y)); ctx.stroke();
+    ctx.textAlign = "right"; ctx.fillText(+y.toFixed(4), L-4, Y(y)+4);
+  }
+  ctx.strokeStyle = "#444"; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(L, Y(0)); ctx.lineTo(w-Rm, Y(0)); ctx.stroke();
+  if (xmin <= 0 && xmax >= 0) { ctx.beginPath(); ctx.moveTo(X(0), T); ctx.lineTo(X(0), h-B); ctx.stroke(); }
+
+  const dx = (b-a)/n; rects = [];
+  for (let i = 0; i < n; i++) {
+    const xl = a + i*dx, xr = xl + dx, info = pieceInfo(f, a, dx, i, m);
+    const pos = info.h >= 0;
+    ctx.fillStyle = pos ? "rgba(21,101,192,.30)" : "rgba(198,40,40,.30)";
+    ctx.strokeStyle = pos ? "rgba(21,101,192,.9)" : "rgba(198,40,40,.9)";
+    ctx.lineWidth = n > 60 ? 0.5 : 1;
+    ctx.beginPath();
+    if (m === "T") {
+      ctx.moveTo(X(xl), Y(0)); ctx.lineTo(X(xl), Y(f(xl))); ctx.lineTo(X(xr), Y(f(xr))); ctx.lineTo(X(xr), Y(0));
+    } else {
+      ctx.rect(X(xl), Y(Math.max(0, info.h)), X(xr)-X(xl), Math.abs(Y(info.h)-Y(0)));
+    }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    rects.push({ i: i+1, xl, xr, ...info, area: info.h*dx });
+  }
+
+  ctx.strokeStyle = "#222"; ctx.lineWidth = 2.2; ctx.beginPath(); let started = false;
+  for (let k = 0; k <= 600; k++) {
+    const x = xmin + (xmax-xmin)*k/600, y = f(x);
+    if (!isFinite(y)) { started = false; continue; }
+    started ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y)); started = true;
+  }
+  ctx.stroke();
+
+  if (m !== "T" && n <= 60) {
+    ctx.fillStyle = "#6a1b9a";
+    for (const r of rects) { ctx.beginPath(); ctx.arc(X(r.xs), Y(r.h), n > 30 ? 2 : 3.5, 0, 2*Math.PI); ctx.fill(); }
+  }
+  ctx.fillStyle = "#1565c0"; ctx.font = "italic bold 13px 'Cambria Math', 'STIX Two Math', serif"; ctx.textAlign = "center";
+  ctx.fillText("a", X(a), Y(0) - 6 > T ? Y(0) + 14 : T+10);
+  ctx.fillText("b", X(b), Y(0) - 6 > T ? Y(0) + 14 : T+10);
+}
+
+function drawConv() {
+  const c = $("conv"), { ctx, w, h } = setupCanvas(c);
+  const F = FUNCS[state.fn], { a, b } = state, exact = F.F(b) - F.F(a);
+  const series = [["L", "#1565c0"], ["R", "#ef6c00"], ["M", "#2e7d32"], ["T", "#6a1b9a"]];
+  const N = 100, data = {};
+  let emin = Infinity, emax = 0;
+  for (const [mm] of series) {
+    data[mm] = [];
+    for (let n = 1; n <= N; n++) {
+      const e = Math.abs(riemann(F.f, a, b, n, mm) - exact);
+      const v = Math.max(e, 1e-14); data[mm].push(v);
+      if (e > 1e-12) { emin = Math.min(emin, v); emax = Math.max(emax, v); }
+    }
+  }
+  if (!isFinite(emin)) { emin = 1e-12; emax = 1; }
+  const lo = Math.floor(Math.log10(emin)), hi = Math.ceil(Math.log10(emax));
+  const L = 52, Rm = 12, T = 10, B = 28;
+  const X = n => L + Math.log10(n)/2*(w-L-Rm);
+  const Y = e => T + (hi - Math.log10(Math.max(e, 10**lo)))/(hi-lo || 1)*(h-T-B);
+  ctx.font = "11px system-ui"; ctx.fillStyle = "#777"; ctx.strokeStyle = "#eee";
+  for (let p = lo; p <= hi; p++) {
+    ctx.beginPath(); ctx.moveTo(L, Y(10**p)); ctx.lineTo(w-Rm, Y(10**p)); ctx.stroke();
+    ctx.textAlign = "right"; ctx.fillText("1e" + p, L-4, Y(10**p)+4);
+  }
+  for (const n of [1, 2, 5, 10, 20, 50, 100]) {
+    ctx.beginPath(); ctx.moveTo(X(n), T); ctx.lineTo(X(n), h-B); ctx.stroke();
+    ctx.textAlign = "center"; ctx.fillText(n, X(n), h-B+14);
+  }
+  ctx.fillText("n", w-Rm-6, h-4);
+  ctx.setLineDash([4, 4]); ctx.strokeStyle = "#999";
+  ctx.beginPath(); ctx.moveTo(X(state.n), T); ctx.lineTo(X(state.n), h-B); ctx.stroke(); ctx.setLineDash([]);
+  for (const [mm, col] of series) {
+    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath();
+    data[mm].forEach((e, k) => { const px = X(k+1), py = Y(e); k ? ctx.lineTo(px, py) : ctx.moveTo(px, py); });
+    ctx.stroke();
+  }
+}
+
+function updateReadout() {
+  const F = FUNCS[state.fn], { a, b, n, m: rule } = state, dx = (b-a)/n;
+  const s = riemann(F.f, a, b, n, rule), ex = F.F(b) - F.F(a);
+  $("rdx").textContent = fmt(dx);
+  $("rs").textContent = fmt(s, 6);
+  $("rex").textContent = fmt(ex, 6);
+  $("rerr").textContent = fmt(s - ex, 6);
+  $("rrel").textContent = Math.abs(ex) > 1e-12 ? (100*Math.abs(s-ex)/Math.abs(ex)).toFixed(3) + " %" : "—";
+  $("nval").textContent = n;
+
+  // build the sum in MathML
+  const name = { L: "L", R: "R", M: "M", rand: "S", T: "T" }[rule];
+  const xim1 = sub(mi("x"), row(mi("i"), mo("−"), mn(1)));
+  const xi = sub(mi("x"), mi("i"));
+  const pt = { L: xim1, R: xi, M: sub(mi("m"), mi("i")), rand: `<msubsup>${mi("x")}${mi("i")}${mo("*")}</msubsup>` }[rule];
+  const lhs = sub(mi(name), mn(n)) + mo("=") + sumTo(mn(n));
+  const res = `<mrow class="res">${mnum(s, 6)}</mrow>`;
+  let lines = [];
+  if (rule === "T") lines.push(lhs + frac(mn(1), mn(2)) + mo("[") + fof(xim1) + mo("+") + fof(xi) + mo("]") + sp + DX);
+  else lines.push(lhs + fof(pt) + sp + DX);
+
+  if (n <= 6) {
+    if (rule === "T") {
+      const ys = []; for (let i = 0; i <= n; i++) ys.push(F.f(a + i*dx));
+      const inner = ys.map((y, i) => (i === 0 || i === n ? "" : mn(2) + mo("·")) + term(y)).join(mo("+"));
+      lines.push(mo("=") + frac(mnum(dx), mn(2)) + mo("·") + mo("[") + inner + mo("]") + mo("=") + res);
+    } else {
+      const infos = []; for (let i = 0; i < n; i++) infos.push(pieceInfo(F.f, a, dx, i, rule));
+      lines.push(mo("=") + mnum(dx) + mo("·") + mo("[") + infos.map(p => fof(mnum(p.xs))).join(mo("+")) + mo("]"));
+      lines.push(mo("=") + mnum(dx) + mo("·") + mo("[") + infos.map(p => term(p.h)).join(mo("+")) + mo("]") + mo("=") + res);
+    }
+    $("sigma").innerHTML = lines.map(l => `<div>${md(l)}</div>`).join("");
+  } else {
+    $("sigma").innerHTML = `<div>${md(lines[0] + mo("=") + res)} <span class="hint">(terms shown for ${m(row(mi("n"), mo("≤"), mn(6)))})</span></div>`;
+  }
+}
+
+function render() { drawPlot(); updateReadout(); drawConv(); }
+
+// ---------- Controls ----------
+function validate() {
+  const F = FUNCS[state.fn]; let a = parseFloat($("a").value), b = parseFloat($("b").value), msg = "";
+  if (isNaN(a) || isNaN(b)) return;
+  if (F.dmin !== undefined && a < F.dmin) { a = F.dmin; $("a").value = a; msg = `a must be ≥ ${F.dmin} for this function.`; }
+  if (b <= a) { msg = "Need b > a."; $("warn").textContent = msg; return; }
+  $("warn").textContent = msg;
+  state.a = a; state.b = b; render();
+}
+function setN(n) { state.n = Math.max(1, Math.min(100, n)); $("n").value = state.n; render(); }
+function loadFn(k) { state.fn = k; state.a = FUNCS[k].a; state.b = FUNCS[k].b; $("a").value = state.a; $("b").value = state.b; $("warn").textContent = ""; render(); }
+
+fnSel.onchange = () => loadFn(fnSel.value);
+$("a").onchange = validate; $("b").onchange = validate;
+$("n").oninput = () => setN(+$("n").value);
+$("nminus").onclick = () => setN(state.n - 1);
+$("nplus").onclick = () => setN(state.n + 1);
+$("ndouble").onclick = () => setN(state.n * 2);
+$("reroll").onclick = e => { e.preventDefault(); reroll(); render(); };
+document.querySelectorAll("input[name=m]").forEach(r => r.onchange = () => { state.m = r.value; render(); });
+
+let timer = null;
+$("anim").onclick = () => {
+  if (timer) { clearInterval(timer); timer = null; $("anim").textContent = "▶ Animate"; return; }
+  setN(1); $("anim").textContent = "■ Stop";
+  timer = setInterval(() => {
+    if (state.n >= 100) { clearInterval(timer); timer = null; $("anim").textContent = "▶ Animate"; return; }
+    setN(state.n < 20 ? state.n + 1 : state.n + 4);
+  }, 140);
+};
+
+// hover tooltip (plain text on dark background)
+const tip = $("tip");
+$("plot").addEventListener("mousemove", e => {
+  if (!view) return;
+  const r = e.target.getBoundingClientRect(), px = e.clientX - r.left;
+  const x = view.xmin + (px - view.L)/(view.w - view.L - view.Rm)*(view.xmax - view.xmin);
+  const R = rects.find(q => x >= q.xl && x < q.xr);
+  if (!R) { tip.style.display = "none"; return; }
+  tip.innerHTML = `Subinterval ${R.i}: [${fmt(R.xl, 4)}, ${fmt(R.xr, 4)}]<br>` +
+    (state.m === "T" ? `avg height = ${fmt(R.h, 4)}` : `x<sub>${R.i}</sub>* = ${fmt(R.xs, 4)}, f = ${fmt(R.h, 4)}`) +
+    `<br>area = ${fmt(R.area, 5)}`;
+  tip.style.display = "block"; tip.style.left = (e.clientX + 14) + "px"; tip.style.top = (e.clientY + 10) + "px";
+});
+$("plot").addEventListener("mouseleave", () => tip.style.display = "none");
+window.addEventListener("resize", render);
+
+$("a").value = state.a; $("b").value = state.b;
+render();
+
+// ---------- Quiz: each question is a generator (same concept, fresh numbers) ----------
+const Ln = sub(mi("L"), mi("n")), Rn = sub(mi("R"), mi("n"));
+const INT = integ(mi("a"), mi("b"), row(mi("f"), mo("("), mi("x"), mo(")")));
+const LIM = `<munder><mo movablelimits="false">lim</mo>${row(mi("n"), mo("→"), mi("∞"))}</munder>`;
+const rnd = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+const gcd = (p, q) => q ? gcd(q, p % q) : Math.abs(p);
+function ratM(p, q) {                       // reduced fraction p/q as MathML
+  const g = gcd(p, q) || 1; p /= g; q /= g;
+  const body = q === 1 ? mn(Math.abs(p)) : frac(mn(Math.abs(p)), mn(q));
+  return p < 0 ? row(mo("−"), body) : body;
+}
+const nm = v => mnum(v, 4);
+const numOpt = v => ({ k: "n" + (+v.toFixed(6)), t: m(nm(v)) });
+const txtOpt = t => ({ k: t, t });
+// correct option + distractors (deduplicated) → 4 shuffled options
+function makeQ(q, correct, distractors, e) {
+  const seen = new Set([correct.k]), opts = [{ t: correct.t, ok: true }];
+  for (const d of distractors) { if (opts.length >= 4) break; if (!seen.has(d.k)) { seen.add(d.k); opts.push({ t: d.t, ok: false }); } }
+  shuffle(opts);
+  return { q, o: opts.map(x => x.t), a: opts.findIndex(x => x.ok), e };
+}
+const plusList = vals => vals.map(term).join(mo("+"));
+
+// Q1 — monotonicity decides over/underestimate
+function g1() {
+  const inc = Math.random() < 0.5;
+  const lo = inc ? Ln : Rn, hi = inc ? Rn : Ln;
+  return makeQ(
+    `${m(mi("f"))} is <b>${inc ? "increasing" : "decreasing"}</b> on ${m(ivl(mi("a"), mi("b")))}. Which statement is true for every ${m(mi("n"))}?`,
+    txtOpt(m(lo + mo("≤") + INT + mo("≤") + hi)),
+    shuffle([txtOpt(m(hi + mo("≤") + INT + mo("≤") + lo)), txtOpt(m(Ln + mo("=") + Rn)),
+             txtOpt(m(lo + mo("≤") + hi + mo("≤") + INT)), txtOpt(m(INT + mo("≤") + lo + mo("≤") + hi))]),
+    inc ? `On an increasing function the left endpoint is the lowest point of each piece, so left rectangles sit under the curve (underestimate) and right rectangles poke above it (overestimate).`
+        : `On a decreasing function the left endpoint is the <i>highest</i> point of each piece, so left rectangles overestimate and right rectangles underestimate.`);
+}
+
+// Q2 — computing Δx
+function g2() {
+  const L = pick([2, 3, 4, 5, 6, 8, 10, 12]);
+  const n = pick([4, 5, 6, 8, 10, 12, 16, 20, 24, 25].filter(k => k !== L && Math.abs(L / k * 1000 - Math.round(L / k * 1000)) < 1e-9));
+  const a = rnd(-3, 3), b = a + L, dx = L / n;
+  return makeQ(
+    `For ${m(ivl(nm(a), nm(b)))} split into ${m(mi("n") + mo("=") + mn(n))} equal subintervals, ${m(DX)} equals:`,
+    numOpt(dx),
+    shuffle([numOpt(n / L), numOpt(L / (2 * n)), numOpt(2 * L / n), numOpt((a + b) / n), numOpt(b / n), numOpt(L / (n + 1))]),
+    m(DX + mo("=") + frac(row(mi("b"), mo("−"), mi("a")), mi("n")) + mo("=") + frac(row(nm(b), mo("−"), term(a)), mn(n)) + mo("=") + frac(mn(L), mn(n)) + mo("=") + nm(dx)) + ".");
+}
+
+// Q3 — computing a left/right sum for a linear function
+function g3() {
+  const c = rnd(1, 3), d = rnd(0, 3), n = rnd(3, 5), h = pick([1, 0.5, 2]), B = n * h, rule = pick(["L", "R"]);
+  const f = x => c * x + d;
+  const pts = [], vals = [];
+  for (let i = 0; i < n; i++) { const x = rule === "L" ? i * h : (i + 1) * h; pts.push(x); vals.push(f(x)); }
+  const tot = vals.reduce((s, v) => s + v, 0), S = h * tot;
+  const other = rule === "L" ? S + c * h * h * n : S - c * h * h * n;
+  const exact = c * B * B / 2 + d * B;
+  const fexpr = row(c === 1 ? mi("x") : row(mn(c), mi("x")), d ? row(mo("+"), mn(d)) : "");
+  const name = sub(mi(rule), mn(n));
+  const dist = [numOpt(other), numOpt(exact), numOpt(S + c * h * h), numOpt(S - c * h * h), numOpt(S + h * d)];
+  if (h !== 1) dist.unshift(numOpt(tot));
+  return makeQ(
+    `Compute ${m(name)} for ${m(row(mi("f"), mo("("), mi("x"), mo(")"), mo("="), fexpr))} on ${m(ivl(mn(0), nm(B)))}.`,
+    numOpt(S), dist,
+    `${m(DX + mo("=") + frac(nm(B), mn(n)) + mo("=") + nm(h))}; ${rule === "L" ? "left" : "right"} endpoints ${pts.map(x => m(nm(x))).join(", ")}. ` +
+    `So ${m(name + mo("=") + nm(h) + mo("·") + row(mo("("), plusList(vals), mo(")")) + mo("=") + nm(S))}. ` +
+    `The exact area is ${m(nm(exact))}, so ${m(name)} ${rule === "L" ? "underestimates" : "overestimates"} (f is increasing).` +
+    (h !== 1 ? ` Forgetting to multiply by ${m(DX)} gives ${m(nm(tot))} — a common slip.` : ""));
+}
+
+// Q4 — signed area interpretation (three scenarios)
+function g4() {
+  const v = pick(["neg", "zero", "pos"]);
+  const AB = m(ivl(mi("a"), mi("b")));
+  if (v === "neg") return makeQ(
+    `A Riemann sum for ${m(mi("f"))} over ${AB} comes out <b>negative</b>. The best interpretation is:`,
+    txtOpt("More (rectangle) area lies below the x-axis than above it"),
+    shuffle([txtOpt("A computational mistake — areas cannot be negative"), txtOpt(`${m(DX)} must be negative`), txtOpt(`${m(mi("f"))} is negative everywhere on ${AB}`)]),
+    `Rectangles below the axis have negative height ${m(fof(`<msubsup>${mi("x")}${mi("i")}${mo("*")}</msubsup>`))}, so the sum measures signed area. ${m(mi("f"))} can still be positive somewhere — try ${m(mi("x") + mo("−") + mn(2))} on ${m(ivl(mn(0), mn(3)))}.`);
+  if (v === "zero") return makeQ(
+    `A Riemann sum for a function that is <b>not</b> identically zero equals <b>0</b>. The best interpretation is:`,
+    txtOpt("Rectangle areas above and below the x-axis cancel out"),
+    shuffle([txtOpt(`${m(mi("f"))} must be zero everywhere on ${AB}`), txtOpt(`${m(DX)} must be 0`), txtOpt("A computational mistake — the area cannot be zero")]),
+    `Signed areas cancel. Example: ${m(mi("sin") + mo("⁡") + `<mspace width="0.17em"/>` + mi("x"))} on ${m(ivl(mn(0), row(mn(2), mi("π"))))} gives 0 for every ${m(mi("n"))} (task ② above).`);
+  return makeQ(
+    `${m(mi("f"))} is negative on part of ${AB}, yet the Riemann sum is <b>positive</b>. This means:`,
+    txtOpt("More (rectangle) area lies above the x-axis than below it"),
+    shuffle([txtOpt("The negative rectangles were ignored in the sum"), txtOpt(`${m(DX)} must be negative`), txtOpt(`${m(mi("f"))} must actually be positive everywhere`)]),
+    `Negative rectangles subtract, but the positive ones outweigh them. Signed area = (area above) − (area below).`);
+}
+
+// Q5 — how error scales when n is multiplied by k
+function g5() {
+  const k = pick([2, 3, 4, 10]), rule = pick(["left-endpoint", "right-endpoint", "midpoint", "trapezoid"]);
+  const p = rule.includes("endpoint") ? 1 : 2;
+  const verb = k === 2 ? `double ${m(mi("n"))}` : k === 3 ? `triple ${m(mi("n"))}` : `multiply ${m(mi("n"))} by ${k}`;
+  const div = q => txtOpt(`divided by about ${m(mn(q))}`);
+  return makeQ(
+    `For a smooth function, you ${verb}. The ${rule} rule's error is roughly:`,
+    div(k ** p),
+    shuffle([div(k ** (3 - p)), txtOpt("unchanged"), txtOpt(`multiplied by about ${m(mn(k))}`)]),
+    `${rule[0].toUpperCase() + rule.slice(1)} error behaves like ${m(frac(mi("C"), p === 1 ? mi("n") : sup(mi("n"), mn(2))))}, ` +
+    `so multiplying ${m(mi("n"))} by ${k} divides the error by about ${m((p === 1 ? mn(k) : sup(mn(k), mn(2))) + (p === 2 ? mo("=") + mn(k * k) : ""))}. ` +
+    `(Left/Right ~ ${m(frac(mi("C"), mi("n")))}; Midpoint/Trapezoid ~ ${m(frac(mi("C"), sup(mi("n"), mn(2))))}.) Check the convergence plot.`);
+}
+
+// Q6 — recognising a limit of sums as a definite integral
+function g6() {
+  const a = pick([0, 0, 1, 2]), L = pick([1, 1, 2, 3]), p = pick([2, 3]);
+  const step = L === 1 ? frac(mi("i"), mi("n")) : frac(row(mn(L), mi("i")), mi("n"));
+  const xi = a === 0 ? step : row(mn(a), mo("+"), step);
+  const xp = pw => pw === 1 ? mi("x") : sup(mi("x"), mn(pw));
+  const I = (lo, hi, pw) => ({ k: `${lo},${hi},${pw}`, t: m(integ(mn(lo), mn(hi), xp(pw))) });
+  const dist = [I(0, L, p), I(a, a + 1, p), I(0, 1, p), I(a, a + L, p + 1), I(a, a + L, p - 1), I(a + 1, a + L + 1, p), I(a, a + 2 * L, p)];
+  if (L > a && a > 0) dist.unshift(I(a, L, p));
+  const num = (a + L) ** (p + 1) - a ** (p + 1), den = p + 1;
+  return makeQ(
+    `Which definite integral equals ${m(LIM + sumTo(mi("n")) + sup(row(moS("("), xi, moS(")")), mn(p)) + mo("·") + frac(mn(L), mi("n")))}?`,
+    I(a, a + L, p), shuffle(dist),
+    `${m(DX + mo("=") + frac(mn(L), mi("n")))} means ${m(mi("b") + mo("−") + mi("a") + mo("=") + mn(L))}. ` +
+    `The points ${m(sub(mi("x"), mi("i")) + mo("=") + xi)} are right endpoints starting from ${m(mi("a") + mo("=") + mn(a))}, so ${m(mi("b") + mo("=") + mn(a + L))}; the height is ${m(sup(sub(mi("x"), mi("i")), mn(p)))}. ` +
+    `So it is ${m(integ(mn(a), mn(a + L), xp(p)) + mo("=") + ratM(num, den))}.`);
+}
+
+let QUIZ = [];
+function buildQuiz() {
+  const box = $("quizbox"); box.innerHTML = "";
+  QUIZ.forEach((item, k) => {
+    const d = document.createElement("div"); d.className = "q";
+    d.innerHTML = `<p class="stem">Q${k+1}. ${item.q}</p>` +
+      item.o.map((t, j) => `<label><input type="radio" name="q${k}" value="${j}"> ${t}</label>`).join("") +
+      `<div class="fb" id="fb${k}"></div>`;
+    box.appendChild(d);
+  });
+  $("score").textContent = "";
+}
+function newQuiz() { QUIZ = [g1(), g2(), g3(), g4(), g5(), g6()]; buildQuiz(); }
+$("check").onclick = () => {
+  let score = 0;
+  QUIZ.forEach((item, k) => {
+    const sel = document.querySelector(`input[name=q${k}]:checked`), fb = $("fb" + k);
+    document.querySelectorAll(`input[name=q${k}]`).forEach(inp => inp.parentElement.classList.remove("right", "wrong"));
+    fb.style.display = "block";
+    if (!sel) { fb.innerHTML = `<span class="error">No answer selected.</span>`; return; }
+    const ok = +sel.value === item.a;
+    if (ok) score++;
+    sel.parentElement.classList.add(ok ? "right" : "wrong");
+    if (!ok) document.querySelector(`input[name=q${k}][value="${item.a}"]`).parentElement.classList.add("right");
+    fb.innerHTML = (ok ? `<b class="good">Correct.</b> ` : `<span class="error">Not quite.</span> `) + item.e;
+  });
+  $("score").textContent = `Score: ${score} / ${QUIZ.length}` + (score === QUIZ.length ? " — excellent!" : "");
+  $("score").style.color = score >= 5 ? "var(--good)" : score >= 3 ? "var(--accent)" : "var(--bad)";
+};
+$("reset").onclick = buildQuiz;
+$("newq").onclick = newQuiz;
+newQuiz();
+
+// "Try these" explanations: open/close all
+$("toggleEx").onclick = () => {
+  const all = [...document.querySelectorAll("details.explain")], open = !all.every(d => d.open);
+  all.forEach(d => d.open = open);
+  $("toggleEx").textContent = open ? "Hide all explanations" : "Show all explanations";
+};
+</script>
+</body>
+</html>
