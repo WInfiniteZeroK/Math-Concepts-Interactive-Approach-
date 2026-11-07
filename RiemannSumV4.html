@@ -12,16 +12,41 @@
   .grid2 { display: grid; grid-template-columns: 1fr 300px; gap: 16px; }
   @media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
   canvas { width: 100%; display: block; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
-  #plot { height: 420px; cursor: crosshair; }
+  #plot { height: 420px; cursor: crosshair; touch-action: pan-y; }
+  /* Explore layout: the graph + results stay pinned while the controls scroll (sticky is switched off by
+     layoutVars() in the script if the pinned block would not fit the screen) */
+  :root { --navh: 50px; }
+  .plotcol { background: #fff; min-width: 0; }
+  @media (min-width: 861px) and (min-height: 600px) {
+    .plotcol { position: sticky; top: calc(var(--navh) + 8px); align-self: start; z-index: 2; }
+    #plot { height: clamp(260px, calc(100vh - var(--navh) - 210px), 420px);
+            height: clamp(260px, calc(100svh - var(--navh) - 210px), 420px); }
+  }
+  @media (max-width: 860px) {
+    #plot { height: clamp(220px, 45vh, 340px); height: clamp(220px, 45svh, 340px); }
+  }
+  @media (min-width: 600px) and (max-width: 860px) and (min-height: 800px) {
+    .plotcol { position: sticky; top: var(--navh); z-index: 2; padding-bottom: 8px;
+               border-bottom: 1px solid var(--border); box-shadow: 0 8px 8px -8px rgba(0,0,0,.25); }
+    #plot { height: 35vh; height: 35svh; }
+  }
+  .plotcol.nosticky { position: static; box-shadow: none; border-bottom: 0; }
+  .readbar { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 6px; padding: 6px 10px; font-size: 0.85rem;
+             background: var(--soft); border: 1px solid var(--border); border-radius: 6px; }
+  .readbar > div { display: flex; flex-direction: column; }
+  .readbar .lbl { color: var(--muted); font-size: 0.8rem; }
+  .readbar .val { font-family: ui-monospace, Consolas, monospace; }
+  #warn:empty, #dwarn:empty { display: none; }
+  .legend .hint { white-space: normal; }
+  .plotwrap { position: relative; }
+  .zoombar { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; }
+  .zoombar button { min-width: 28px; height: 26px; padding: 0 6px; font-size: 0.9rem; line-height: 1; opacity: 0.9; }
   #conv { height: 280px; }
   .ctl { margin-bottom: 10px; }
   .ctl label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 2px; }
   .ctl input[type=number] { width: 80px; }
   .ctl input[type=range] { width: 100%; }
   .methods label { display: block; font-size: 0.92rem; color: var(--ink); cursor: pointer; }
-  table.read { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
-  table.read td { padding: 3px 4px; border-bottom: 1px solid #eee; }
-  table.read td:last-child { text-align: right; font-family: ui-monospace, Consolas, monospace; }
   .big { font-size: 1.15rem; font-weight: bold; color: var(--accent); }
   #sigma { background: var(--soft); border: 1px dashed var(--border); border-radius: 6px;
            padding: 8px 10px; overflow-x: auto; white-space: nowrap; }
@@ -116,16 +141,29 @@
 <section id="explore">
   <h2>2. Explore</h2>
   <div class="grid2">
-    <div>
-      <canvas id="plot"></canvas>
+    <div class="plotcol" id="plotcol">
+      <div class="plotwrap">
+        <canvas id="plot"></canvas>
+        <div class="zoombar">
+          <button id="zin" title="Zoom in">+</button>
+          <button id="zout" title="Zoom out">−</button>
+          <button id="zreset" title="Reset view (or double-click the graph)">Reset</button>
+        </div>
+      </div>
       <div class="legend" style="margin-top:6px">
         <span><i class="swatch" style="background:rgba(21,101,192,.35)"></i>positive contribution</span>
         <span><i class="swatch" style="background:rgba(198,40,40,.35)"></i>negative contribution</span>
         <span><i class="swatch" style="background:#6a1b9a;border-radius:50%"></i>sample point <math><msubsup><mi>x</mi><mi>i</mi><mo>*</mo></msubsup></math></span>
-        <span class="hint">Hover a rectangle for its details.</span>
+        <span class="hint">Hover or tap a rectangle for its details. Zoom: Ctrl + scroll (add Shift: x only, Alt: y only) or pinch with two fingers. Pan: drag, or two fingers on touch. Double-click / double-tap to reset.</span>
       </div>
-      <h3>Sum written out</h3>
-      <div id="sigma"></div>
+      <div class="readbar">
+        <div><span class="lbl"><math><mi mathvariant="normal">Δ</mi><mi>x</mi></math></span><span id="rdx" class="val"></span></div>
+        <div><span class="lbl">Numerical integration value <math><msub><mi>S</mi><mi>n</mi></msub></math></span><span id="rs" class="val big"></span></div>
+        <div><span class="lbl" id="lex">Exact <math><msubsup><mo>∫</mo><mi>a</mi><mi>b</mi></msubsup><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mspace width="0.17em"/><mi>d</mi><mi>x</mi></math></span><span id="rex" class="val"></span></div>
+        <div><span class="lbl" id="lerr">Error <math><msub><mi>S</mi><mi>n</mi></msub><mo>−</mo><mtext>exact</mtext></math></span><span id="rerr" class="val"></span></div>
+        <div><span class="lbl">Relative error</span><span id="rrel" class="val"></span></div>
+      </div>
+      <p id="dwarn" style="font-size:.85rem;color:var(--bad);margin:6px 0 0"></p>
     </div>
     <div>
       <div class="ctl">
@@ -151,6 +189,7 @@
         <div><label><math><mi>a</mi></math></label><input type="number" id="a" step="0.5"></div>
         <div><label><math><mi>b</mi></math></label><input type="number" id="b" step="0.5"></div>
       </div>
+      <p id="warn" class="error" style="font-size:.85rem;margin:-4px 0 10px"></p>
       <div class="ctl">
         <label>Number of subintervals <math><mi>n</mi><mo>=</mo></math> <b id="nval">4</b></label>
         <input type="range" id="n" min="1" max="100" value="4">
@@ -167,17 +206,10 @@
         <label><input type="radio" name="m" value="rand"> Random point <button id="reroll" style="font-size:.75rem;padding:1px 6px">re-roll</button></label>
         <label><input type="radio" name="m" value="T"> Trapezoid (<math><msub><mi>T</mi><mi>n</mi></msub></math>)</label>
       </div>
-      <table class="read">
-        <tr><td><math><mi mathvariant="normal">Δ</mi><mi>x</mi></math></td><td id="rdx"></td></tr>
-        <tr><td>Riemann sum <math><msub><mi>S</mi><mi>n</mi></msub></math></td><td id="rs" class="big"></td></tr>
-        <tr><td id="lex">Exact <math><msubsup><mo>∫</mo><mi>a</mi><mi>b</mi></msubsup><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mspace width="0.17em"/><mi>d</mi><mi>x</mi></math></td><td id="rex"></td></tr>
-        <tr><td id="lerr">Error <math><msub><mi>S</mi><mi>n</mi></msub><mo>−</mo><mtext>exact</mtext></math></td><td id="rerr"></td></tr>
-        <tr><td>Relative error</td><td id="rrel"></td></tr>
-      </table>
-      <p id="warn" class="error" style="font-size:.85rem"></p>
-      <p id="dwarn" style="font-size:.85rem;color:var(--bad)"></p>
     </div>
   </div>
+  <h3>Sum written out</h3>
+  <div id="sigma"></div>
   <h3>Try these <button id="toggleEx" style="font-size:.8rem;margin-left:8px">Show all explanations</button></h3>
   <p class="hint">Try each one in the explorer first, then open the explanation to check your reasoning.</p>
   <div class="task">① <math><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><msup><mi>x</mi><mn>2</mn></msup></math> on
@@ -548,6 +580,8 @@ function niceStep(range) {
 }
 
 let view = null, rects = [];
+let zoom = null;   // user-chosen {xmin, xmax, ymin, ymax}; null = automatic fit
+const tickLabel = (v, step) => String(+v.toFixed(Math.min(12, Math.max(0, -Math.floor(Math.log10(step) + 1e-9)))));
 
 function drawPlot() {
   const c = $("plot"), { ctx, w, h } = setupCanvas(c);
@@ -566,23 +600,31 @@ function drawPlot() {
     ymin = Math.min(0, lo); ymax = Math.max(0, hi);
   }
   const yp = 0.1*(ymax-ymin || 1); ymin -= yp; ymax += yp;
-  const L = 44, Rm = 12, T = 12, B = 28;
+  const auto = { xmin, xmax, ymin, ymax };
+  if (zoom) ({ xmin, xmax, ymin, ymax } = zoom);
+  $("zreset").disabled = !zoom;
+
+  ctx.font = "11px system-ui";
+  const sx = niceStep(xmax-xmin), sy = niceStep(ymax-ymin), xt = [], yt = [];
+  for (let k = Math.ceil(xmin/sx); k*sx <= xmax; k++) xt.push(k*sx);
+  for (let k = Math.ceil(ymin/sy); k*sy <= ymax; k++) yt.push(k*sy);
+  const ylabs = yt.map(y => tickLabel(y, sy));
+  const L = Math.max(44, Math.ceil(Math.max(0, ...ylabs.map(s => ctx.measureText(s).width))) + 10), Rm = 12, T = 12, B = 28;
   const X = x => L + (x-xmin)/(xmax-xmin)*(w-L-Rm);
   const Y = y => T + (ymax-y)/(ymax-ymin)*(h-T-B);
-  view = { X, Y, xmin, xmax, L, Rm, w };
+  view = { X, Y, xmin, xmax, ymin, ymax, L, Rm, T, B, w, h, auto };
 
-  ctx.font = "11px system-ui"; ctx.fillStyle = "#777"; ctx.strokeStyle = "#eee"; ctx.lineWidth = 1;
-  const sx = niceStep(xmax-xmin), sy = niceStep(ymax-ymin);
-  for (let x = Math.ceil(xmin/sx)*sx; x <= xmax; x += sx) {
+  ctx.fillStyle = "#777"; ctx.strokeStyle = "#eee"; ctx.lineWidth = 1;
+  for (const x of xt) {
     ctx.beginPath(); ctx.moveTo(X(x), T); ctx.lineTo(X(x), h-B); ctx.stroke();
-    ctx.textAlign = "center"; ctx.fillText(+x.toFixed(4), X(x), h-B+14);
+    ctx.textAlign = "center"; ctx.fillText(tickLabel(x, sx), X(x), h-B+14);
   }
-  for (let y = Math.ceil(ymin/sy)*sy; y <= ymax; y += sy) {
+  yt.forEach((y, j) => {
     ctx.beginPath(); ctx.moveTo(L, Y(y)); ctx.lineTo(w-Rm, Y(y)); ctx.stroke();
-    ctx.textAlign = "right"; ctx.fillText(+y.toFixed(4), L-4, Y(y)+4);
-  }
+    ctx.textAlign = "right"; ctx.fillText(ylabs[j], L-4, Y(y)+4);
+  });
   ctx.strokeStyle = "#444"; ctx.lineWidth = 1.2;
-  ctx.beginPath(); ctx.moveTo(L, Y(0)); ctx.lineTo(w-Rm, Y(0)); ctx.stroke();
+  if (ymin <= 0 && ymax >= 0) { ctx.beginPath(); ctx.moveTo(L, Y(0)); ctx.lineTo(w-Rm, Y(0)); ctx.stroke(); }
   if (xmin <= 0 && xmax >= 0) { ctx.beginPath(); ctx.moveTo(X(0), T); ctx.lineTo(X(0), h-B); ctx.stroke(); }
 
   ctx.save(); ctx.beginPath(); ctx.rect(L, T, w-L-Rm, h-T-B); ctx.clip();
@@ -597,9 +639,9 @@ function drawPlot() {
     ctx.lineWidth = n > 60 ? 0.5 : 1;
     ctx.beginPath();
     if (m === "T") {
-      ctx.moveTo(X(xl), Y(0)); ctx.lineTo(X(xl), Yc(f(xl))); ctx.lineTo(X(xr), Yc(f(xr))); ctx.lineTo(X(xr), Y(0));
+      ctx.moveTo(X(xl), Yc(0)); ctx.lineTo(X(xl), Yc(f(xl))); ctx.lineTo(X(xr), Yc(f(xr))); ctx.lineTo(X(xr), Yc(0));
     } else {
-      ctx.rect(X(xl), Yc(Math.max(0, info.h)), X(xr)-X(xl), Math.abs(Yc(info.h)-Y(0)));
+      ctx.rect(X(xl), Yc(Math.max(0, info.h)), X(xr)-X(xl), Math.abs(Yc(info.h)-Yc(0)));
     }
     ctx.closePath(); ctx.fill(); ctx.stroke();
     rects.push({ i: i+1, xl, xr, ...info, area: info.h*dx });
@@ -621,8 +663,8 @@ function drawPlot() {
   }
   ctx.restore();
   ctx.fillStyle = "#1565c0"; ctx.font = "italic bold 13px 'Cambria Math', 'STIX Two Math', serif"; ctx.textAlign = "center";
-  ctx.fillText("a", X(a), Y(0) - 6 > T ? Y(0) + 14 : T+10);
-  ctx.fillText("b", X(b), Y(0) - 6 > T ? Y(0) + 14 : T+10);
+  const ly = Math.min(Y(0) - 6 > T ? Y(0) + 14 : T+10, h-B-4);
+  for (const [s, v] of [["a", a], ["b", b]]) if (X(v) >= L && X(v) <= w-Rm) ctx.fillText(s, X(v), ly);
 }
 
 function drawConv() {
@@ -712,7 +754,23 @@ function updateReadout() {
   }
 }
 
-function render() { drawPlot(); updateReadout(); drawConv(); }
+// Pin the graph only when it fits: whole screen height side-by-side, at most 60% of it when stacked above the controls
+function layoutVars() {
+  const root = document.documentElement, pc = $("plotcol"), navh = document.querySelector("nav").offsetHeight;
+  root.style.setProperty("--navh", navh + "px");
+  pc.classList.remove("nosticky");
+  const stacked = matchMedia("(max-width: 860px)").matches;
+  let pinned = getComputedStyle(pc).position === "sticky" && pc.offsetHeight > 0;
+  if (pinned && navh + pc.offsetHeight + 8 > innerHeight * (stacked ? 0.6 : 1)) { pc.classList.add("nosticky"); pinned = false; }
+  root.style.scrollPaddingTop = pinned && stacked ? (navh + pc.offsetHeight + 8) + "px" : "";   // keep focused inputs out from under the pinned graph
+}
+document.addEventListener("focusin", e => {
+  const pc = $("plotcol");
+  if (!document.documentElement.style.scrollPaddingTop || pc.contains(e.target) || !$("explore").contains(e.target)) return;
+  const top = pc.getBoundingClientRect().bottom + 8, y = e.target.getBoundingClientRect().top;
+  if (y < top) window.scrollBy(0, y - top);
+});
+function render() { layoutVars(); drawPlot(); updateReadout(); drawConv(); }
 
 // ---------- Controls ----------
 function validate() {
@@ -721,11 +779,11 @@ function validate() {
   if (F.dmin !== undefined && a < F.dmin) { a = F.dmin; $("a").value = a; msg = `a must be ≥ ${F.dmin} for this function.`; }
   if (b <= a) { msg = "Need b > a."; $("warn").textContent = msg; return; }
   $("warn").textContent = msg;
-  state.a = a; state.b = b; render();
+  state.a = a; state.b = b; zoom = null; render();
 }
 function setN(n) { state.n = Math.max(1, Math.min(100, n)); $("n").value = state.n; render(); }
 function loadFn(k) {
-  state.fn = k; $("warn").textContent = "";
+  state.fn = k; $("warn").textContent = ""; zoom = null;
   $("custombox").hidden = k !== "custom";
   if (k === "custom") { applyCustom(); $("cexpr").focus(); return; }     // keep the current interval
   state.a = FUNCS[k].a; state.b = FUNCS[k].b; $("a").value = state.a; $("b").value = state.b; render();
@@ -751,6 +809,7 @@ function applyCustom() {
   if (tree) {
     const C = FUNCS.custom;
     C.f = compile(tree); C.src = $("cexpr").value.trim();
+    if (state.fn === "custom") zoom = null;
   }
   if (state.fn === "custom") render();
 }
@@ -778,19 +837,105 @@ $("anim").onclick = () => {
 
 // hover tooltip (plain text on dark background)
 const tip = $("tip");
-$("plot").addEventListener("mousemove", e => {
-  if (!view) return;
-  const r = e.target.getBoundingClientRect(), px = e.clientX - r.left;
+function showTip(clientX, clientY, above) {   // above: for touch, so the finger doesn't cover it
+  const r = $("plot").getBoundingClientRect(), px = clientX - r.left;
   const x = view.xmin + (px - view.L)/(view.w - view.L - view.Rm)*(view.xmax - view.xmin);
   const R = rects.find(q => x >= q.xl && x < q.xr);
   if (!R) { tip.style.display = "none"; return; }
   tip.innerHTML = `Subinterval ${R.i}: [${fmt(R.xl, 4)}, ${fmt(R.xr, 4)}]<br>` +
     (state.m === "T" ? `avg height = ${fmt(R.h, 4)}` : `x<sub>${R.i}</sub>* = ${fmt(R.xs, 4)}, f = ${fmt(R.h, 4)}`) +
     `<br>area = ${fmt(R.area, 5)}`;
-  tip.style.display = "block"; tip.style.left = (e.clientX + 14) + "px"; tip.style.top = (e.clientY + 10) + "px";
-});
+  tip.style.display = "block";
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  tip.style.left = Math.max(4, Math.min(clientX + 14, innerWidth - tw - 4)) + "px";
+  tip.style.top = Math.max(4, above ? clientY - th - 24 : Math.min(clientY + 10, innerHeight - th - 4)) + "px";
+}
+$("plot").addEventListener("mousemove", e => { if (view && !drag) showTip(e.clientX, e.clientY, false); });
 $("plot").addEventListener("mouseleave", () => tip.style.display = "none");
+window.addEventListener("scroll", () => tip.style.display = "none", { passive: true });
 window.addEventListener("resize", render);
+
+// ---------- Zoom & pan ----------
+const ZMIN = 1e-3, ZMAX = 1e3;   // view size limits, relative to the automatic fit
+function zoomAt(fx, fy, px, py) {
+  const v = view, A = v.auto;
+  const cx = v.xmin + (px - v.L)/(v.w - v.L - v.Rm)*(v.xmax - v.xmin);
+  const cy = v.ymax - (py - v.T)/(v.h - v.T - v.B)*(v.ymax - v.ymin);
+  const lim = (f, cur, full) => Math.min(full*ZMAX, Math.max(full*ZMIN, cur*f)) / cur;
+  fx = lim(fx, v.xmax - v.xmin, A.xmax - A.xmin); fy = lim(fy, v.ymax - v.ymin, A.ymax - A.ymin);
+  zoom = { xmin: cx - (cx - v.xmin)*fx, xmax: cx + (v.xmax - cx)*fx, ymin: cy - (cy - v.ymin)*fy, ymax: cy + (v.ymax - cy)*fy };
+  drawPlot();
+}
+const zoomCenter = f => view && zoomAt(f, f, (view.L + view.w - view.Rm)/2, (view.T + view.h - view.B)/2);
+const resetZoom = () => { zoom = null; drawPlot(); };
+$("zin").onclick = () => zoomCenter(0.8);
+$("zout").onclick = () => zoomCenter(1.25);
+$("zreset").onclick = resetZoom;
+$("plot").addEventListener("dblclick", resetZoom);
+$("plot").addEventListener("wheel", e => {
+  if (!view || !e.ctrlKey) return;   // plain wheel scrolls the page; Ctrl+wheel (or trackpad pinch) zooms
+  e.preventDefault();
+  const r = e.target.getBoundingClientRect();
+  const d = (e.deltaY || e.deltaX) * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
+  const f = Math.exp(Math.max(-300, Math.min(300, d)) * 0.0015);
+  zoomAt(e.altKey ? 1 : f, e.shiftKey ? 1 : f, e.clientX - r.left, e.clientY - r.top);
+}, { passive: false });
+
+let drag = null, panFrame = 0;
+$("plot").addEventListener("mousedown", e => {
+  if (e.button !== 0 || !view) return;
+  e.preventDefault();
+  drag = { x: e.clientX, y: e.clientY, v: { ...view } };
+  $("plot").style.cursor = "grabbing"; tip.style.display = "none";
+});
+window.addEventListener("mousemove", e => {
+  if (!drag) return;
+  const v = drag.v;
+  const dx = (e.clientX - drag.x)/(v.w - v.L - v.Rm)*(v.xmax - v.xmin);
+  const dy = (e.clientY - drag.y)/(v.h - v.T - v.B)*(v.ymax - v.ymin);
+  zoom = { xmin: v.xmin - dx, xmax: v.xmax - dx, ymin: v.ymin + dy, ymax: v.ymax + dy };
+  if (!panFrame) panFrame = requestAnimationFrame(() => { panFrame = 0; drawPlot(); });
+});
+window.addEventListener("mouseup", () => { if (drag) { drag = null; $("plot").style.cursor = ""; } });
+
+// Touch: one finger scrolls the page (touch-action: pan-y) and taps show details; two fingers pinch-zoom and pan
+let pinch = null, tap = null, lastTap = 0;
+const touchPts = e => { const r = $("plot").getBoundingClientRect(); return [...e.touches].slice(0, 2).map(t => ({ x: t.clientX - r.left, y: t.clientY - r.top })); };
+$("plot").addEventListener("touchstart", e => {
+  if (!view) return;
+  if (e.touches.length === 2) {
+    e.preventDefault(); tap = null; tip.style.display = "none";
+    const [p, q] = touchPts(e);
+    pinch = { v: { ...view }, mx: (p.x + q.x)/2, my: (p.y + q.y)/2, d: Math.max(10, Math.hypot(p.x - q.x, p.y - q.y)) };
+  } else if (e.touches.length === 1) tap = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
+  else pinch = tap = null;
+}, { passive: false });
+$("plot").addEventListener("touchmove", e => {
+  if (pinch && e.touches.length === 2) {
+    if (e.cancelable) e.preventDefault();
+    const v = pinch.v, A = v.auto, [p, q] = touchPts(e), pw = v.w - v.L - v.Rm, ph = v.h - v.T - v.B;
+    const vw = v.xmax - v.xmin, vh = v.ymax - v.ymin, s = pinch.d / Math.max(10, Math.hypot(p.x - q.x, p.y - q.y));
+    const sx = Math.min(ZMAX*(A.xmax - A.xmin), Math.max(ZMIN*(A.xmax - A.xmin), vw*s)) / vw;
+    const sy = Math.min(ZMAX*(A.ymax - A.ymin), Math.max(ZMIN*(A.ymax - A.ymin), vh*s)) / vh;
+    // keep the data point that was under the starting finger midpoint under the current midpoint
+    const cx = v.xmin + (pinch.mx - v.L)/pw*vw, cy = v.ymax - (pinch.my - v.T)/ph*vh;
+    const mx = (p.x + q.x)/2, my = (p.y + q.y)/2, xmin = cx - (mx - v.L)/pw*vw*sx, ymax = cy + (my - v.T)/ph*vh*sy;
+    zoom = { xmin, xmax: xmin + vw*sx, ymin: ymax - vh*sy, ymax };
+    if (!panFrame) panFrame = requestAnimationFrame(() => { panFrame = 0; drawPlot(); });
+  } else if (tap && Math.hypot(e.touches[0].clientX - tap.x, e.touches[0].clientY - tap.y) > 10) tap = null;
+}, { passive: false });
+$("plot").addEventListener("touchend", e => {
+  if (pinch && e.touches.length < 2) pinch = null;
+  if (tap && !e.touches.length && Date.now() - tap.t < 500) {
+    e.preventDefault();   // suppress the emulated mouse events (they would start a mouse drag)
+    if (Date.now() - lastTap < 350) { lastTap = 0; tip.style.display = "none"; resetZoom(); }
+    else { lastTap = Date.now(); showTip(tap.x, tap.y, true); }
+  }
+  if (!e.touches.length) tap = null;
+}, { passive: false });
+$("plot").addEventListener("touchcancel", () => { pinch = tap = null; });
+$("plot").addEventListener("gesturestart", e => e.preventDefault());   // Safari: no page zoom while pinching the graph
+document.addEventListener("touchstart", e => { if (e.target !== $("plot")) tip.style.display = "none"; }, { passive: true });
 
 // ---------- Tabs ----------
 document.querySelectorAll("nav button[data-t]").forEach(btn => btn.onclick = () => {
