@@ -900,12 +900,15 @@ function shapePoly(s) {
   }
 }
 
-function buildSolid() {
+// pxPerUnit = screen pixels per world unit, so circles get ~1 segment per 3.5 px of circumference
+function buildSolid(pxPerUnit) {
   const F = FUNCS[state.fn], f = F.f, { a, b, n, m: rule, method, k, c } = state;
   const prims = [], floor = [];
   const add = (p, col) => prims.push({ p, c: col });
   const t1 = !state.cut ? 0 : (method === "shell" && c > (a + b)/2) ? Math.PI : 0.5*Math.PI, span = state.cut ? 1.5*Math.PI : 2*Math.PI;
   const segs = q => Math.max(6, Math.round(q * span / (2*Math.PI)));
+  // segments for a circle of radius r (world units): full-circle count from its on-screen circumference, clamped
+  const circSegs = r => segs(Math.min(192, Math.max(12, Math.round(2*Math.PI*r*pxPerUnit / 3.5))));
   const ang = (j, S) => t1 + span*j/S;
 
   // pts = [[x, value], ...] profile along x
@@ -959,18 +962,18 @@ function buildSolid() {
     const N = method === "slice" ? 60 : 80, pts = [];
     for (let q = 0; q <= N; q++) { const x = a + (b-a)*q/N, y = f(x); if (isFinite(y)) pts.push([x, method === "disk" ? Math.abs(y - k) : y]); }
     if (pts.length > 1) {
-      if (method === "disk") diskSolid(pts, COL.solid, COL.solidCut, segs(36));
-      else if (method === "shell") shellSolid(pts, COL.solid, COL.solidCut, segs(36));
+      if (method === "disk") diskSolid(pts, COL.solid, COL.solidCut, circSegs(Math.max(...pts.map(p => p[1]))));
+      else if (method === "shell") shellSolid(pts, COL.solid, COL.solidCut, circSegs(Math.max(...pts.map(p => Math.abs(p[0] - c)))));
       else sliceSolid(pts, COL.solid);
     }
   } else {
-    const dx = (b-a)/n, S = segs(n <= 20 ? 32 : n <= 50 ? 20 : 14);
+    const dx = (b-a)/n;
     for (let i = 0; i < n; i++) {
       const xl = a + i*dx, xr = xl + dx, y = f(sampleX(a, dx, i, rule));
       if (!isFinite(y)) continue;
       const col = i === hoverI ? COL.sel : (i % 2 ? COL.slab2 : COL.slab), cutCol = i === hoverI ? [255,183,77] : COL.cut;
-      if (method === "disk") { const R = Math.abs(y - k); if (R > 1e-9) diskSolid([[xl, R], [xr, R]], col, cutCol, S); }
-      else if (method === "shell") shellSolid([[xl, y], [xr, y]], col, cutCol, S);
+      if (method === "disk") { const R = Math.abs(y - k); if (R > 1e-9) diskSolid([[xl, R], [xr, R]], col, cutCol, circSegs(R)); }
+      else if (method === "shell") shellSolid([[xl, y], [xr, y]], col, cutCol, circSegs(Math.max(Math.abs(xl - c), Math.abs(xr - c))));
       else if (Math.abs(y) > 1e-9) sliceSolid([[xl, y], [xr, y]], col);
     }
   }
@@ -995,7 +998,7 @@ function draw3D() {
   const Lt = (() => { const l = [-0.35, 0.6, 0.75], n = Math.hypot(...l); return l.map(v => v/n); })();
   const path = vs => { ctx.beginPath(); vs.forEach((v, j) => { const s = scr(v); j ? ctx.lineTo(s[0], s[1]) : ctx.moveTo(s[0], s[1]); }); ctx.closePath(); };
 
-  const { prims, floor } = buildSolid();
+  const { prims, floor } = buildSolid(S);
   // base region (cross-section mode) lies on the floor
   ctx.fillStyle = "rgba(120,144,156,.35)"; ctx.strokeStyle = "rgba(120,144,156,.35)"; ctx.lineWidth = 0.6;
   for (const q of floor) { path(q.map(V)); ctx.fill(); ctx.stroke(); }
