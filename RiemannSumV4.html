@@ -117,22 +117,22 @@
     <li>Split <math><mo>[</mo><mi>a</mi><mo>,</mo><mi>b</mi><mo>]</mo></math> into <math><mi>n</mi></math> equal subintervals of width
         <math><mi mathvariant="normal">Δ</mi><mi>x</mi><mo>=</mo><mfrac><mrow><mi>b</mi><mo>−</mo><mi>a</mi></mrow><mi>n</mi></mfrac></math>,
         with endpoints
-        <math><msub><mi>x</mi><mi>i</mi></msub><mo>=</mo><mi>a</mi><mo>+</mo><mi>i</mi><mspace width="0.1em"/><mi mathvariant="normal">Δ</mi><mi>x</mi><mo>,</mo><mspace width="0.4em"/><mi>i</mi><mo>=</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>,</mo><mo>…</mo><mo>,</mo><mi>n</mi></math>.</li>
-    <li>In each subinterval <math><mo>[</mo><msub><mi>x</mi><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>x</mi><mi>i</mi></msub><mo>]</mo></math>
-        pick a <b>sample point</b> <math><msubsup><mi>x</mi><mi>i</mi><mo>*</mo></msubsup></math> (left end, right end, midpoint, …).</li>
-    <li>Build a rectangle of height <math><mi>f</mi><mo stretchy="false">(</mo><msubsup><mi>x</mi><mi>i</mi><mo>*</mo></msubsup><mo stretchy="false">)</mo></math> and add up the areas.</li>
+        <math><msub><mi>x</mi><mi>k</mi></msub><mo>=</mo><mi>a</mi><mo>+</mo><mi>k</mi><mspace width="0.1em"/><mi mathvariant="normal">Δ</mi><mi>x</mi><mo>,</mo><mspace width="0.4em"/><mi>k</mi><mo>=</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>,</mo><mo>…</mo><mo>,</mo><mi>n</mi></math>.
+        The <math><mi>k</mi></math>-th subinterval is <math><mo>[</mo><msub><mi>x</mi><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>x</mi><mi>k</mi></msub><mo>]</mo></math>, with <math><msub><mi>x</mi><mn>0</mn></msub><mo>=</mo><mi>a</mi></math> and <math><msub><mi>x</mi><mi>n</mi></msub><mo>=</mo><mi>b</mi></math>.</li>
+    <li>In each subinterval pick a <b>sample point</b> <math><msub><mi>c</mi><mi>k</mi></msub></math>: any point of it, e.g. the left endpoint <math><msub><mi>x</mi><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow></msub></math>, the right endpoint <math><msub><mi>x</mi><mi>k</mi></msub></math> or the midpoint <math><msub><mover><mi>x</mi><mo>‾</mo></mover><mi>k</mi></msub></math>.</li>
+    <li>Build a rectangle of height <math><mi>f</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mi>k</mi></msub><mo stretchy="false">)</mo></math> and add up the areas.</li>
   </ol>
   <div class="formula">
     <math displaystyle="true">
       <msub><mi>S</mi><mi>n</mi></msub><mo>=</mo>
-      <munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover>
-      <mi>f</mi><mo stretchy="false">(</mo><msubsup><mi>x</mi><mi>i</mi><mo>*</mo></msubsup><mo stretchy="false">)</mo><mspace width="0.17em"/><mi mathvariant="normal">Δ</mi><mi>x</mi>
+      <munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover>
+      <mi>f</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mi>k</mi></msub><mo stretchy="false">)</mo><mspace width="0.17em"/><mi mathvariant="normal">Δ</mi><mi>x</mi>
       <mspace width="1.5em"/><mo>⟶</mo><mspace width="1.5em"/>
       <msubsup><mo>∫</mo><mi>a</mi><mi>b</mi></msubsup><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mspace width="0.17em"/><mi>d</mi><mi>x</mi>
       <mo>=</mo>
       <munder><mo movablelimits="false">lim</mo><mrow><mi>n</mi><mo>→</mo><mi>∞</mi></mrow></munder>
-      <munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover>
-      <mi>f</mi><mo stretchy="false">(</mo><msubsup><mi>x</mi><mi>i</mi><mo>*</mo></msubsup><mo stretchy="false">)</mo><mspace width="0.17em"/><mi mathvariant="normal">Δ</mi><mi>x</mi>
+      <munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover>
+      <mi>f</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mi>k</mi></msub><mo stretchy="false">)</mo><mspace width="0.17em"/><mi mathvariant="normal">Δ</mi><mi>x</mi>
     </math>
   </div>
   <p class="hint">Rectangles below the axis contribute <b>negative</b> area — the Riemann sum measures <i>signed</i> area.</p>
@@ -153,7 +153,7 @@
       <div class="legend" style="margin-top:6px">
         <span><i class="swatch" style="background:rgba(21,101,192,.35)"></i>positive contribution</span>
         <span><i class="swatch" style="background:rgba(198,40,40,.35)"></i>negative contribution</span>
-        <span><i class="swatch" style="background:#6a1b9a;border-radius:50%"></i>sample point <math><msubsup><mi>x</mi><mi>i</mi><mo>*</mo></msubsup></math></span>
+        <span><i class="swatch" style="background:#6a1b9a;border-radius:50%"></i>sample point <math><msub><mi>c</mi><mi>k</mi></msub></math></span>
         <span class="hint">Hover or tap a rectangle for its details. Zoom: Ctrl + scroll (add Shift: x only, Alt: y only) or pinch with two fingers. Pan: drag, or two fingers on touch. Double-click / double-tap to reset.</span>
       </div>
       <div class="readbar">
@@ -343,7 +343,7 @@ const sp   = `<mspace width="0.17em"/>`;
 const DX   = `<mi mathvariant="normal">Δ</mi><mi>x</mi>`;
 const ivl  = (a, b) => row(mo("["), a, mo(","), b, mo("]"));
 const integ = (a, b, f) => `<msubsup><mo>∫</mo>${a}${b}</msubsup>${f}${sp}<mi>d</mi><mi>x</mi>`;
-const sumTo = top => `<munderover><mo>∑</mo>${row(mi("i"), mo("="), mn(1))}${top}</munderover>`;
+const sumTo = top => `<munderover><mo>∑</mo>${row(mi("k"), mo("="), mn(1))}${top}</munderover>`;
 const fof  = arg => row(mi("f"), mo("("), arg, mo(")"));
 
 // ---------- Functions ----------
@@ -729,9 +729,9 @@ function updateReadout() {
 
   // build the sum in MathML
   const name = { L: "L", R: "R", M: "M", rand: "S", T: "T" }[rule];
-  const xim1 = sub(mi("x"), row(mi("i"), mo("−"), mn(1)));
-  const xi = sub(mi("x"), mi("i"));
-  const pt = { L: xim1, R: xi, M: sub(mi("m"), mi("i")), rand: `<msubsup>${mi("x")}${mi("i")}${mo("*")}</msubsup>` }[rule];
+  const xim1 = sub(mi("x"), row(mi("k"), mo("−"), mn(1)));
+  const xi = sub(mi("x"), mi("k"));
+  const pt = { L: xim1, R: xi, M: sub(`<mover><mi>x</mi><mo>‾</mo></mover>`, mi("k")), rand: sub(mi("c"), mi("k")) }[rule];
   const lhs = sub(mi(name), mn(n)) + mo("=") + sumTo(mn(n));
   const res = `<mrow class="res">${mnum(s, 6)}</mrow>`;
   let lines = [];
@@ -842,8 +842,8 @@ function showTip(clientX, clientY, above) {   // above: for touch, so the finger
   const x = view.xmin + (px - view.L)/(view.w - view.L - view.Rm)*(view.xmax - view.xmin);
   const R = rects.find(q => x >= q.xl && x < q.xr);
   if (!R) { tip.style.display = "none"; return; }
-  tip.innerHTML = `Subinterval ${R.i}: [${fmt(R.xl, 4)}, ${fmt(R.xr, 4)}]<br>` +
-    (state.m === "T" ? `avg height = ${fmt(R.h, 4)}` : `x<sub>${R.i}</sub>* = ${fmt(R.xs, 4)}, f = ${fmt(R.h, 4)}`) +
+  tip.innerHTML = `Subinterval k = ${R.i}: [${fmt(R.xl, 4)}, ${fmt(R.xr, 4)}]<br>` +
+    (state.m === "T" ? `avg height = ${fmt(R.h, 4)}` : `c<sub>k</sub> = ${fmt(R.xs, 4)}, f(c<sub>k</sub>) = ${fmt(R.h, 4)}`) +
     `<br>area = ${fmt(R.area, 5)}`;
   tip.style.display = "block";
   const tw = tip.offsetWidth, th = tip.offsetHeight;
@@ -1032,7 +1032,7 @@ function g4() {
     `A Riemann sum for ${m(mi("f"))} over ${AB} comes out <b>negative</b>. The best interpretation is:`,
     txtOpt("More (rectangle) area lies below the x-axis than above it"),
     shuffle([txtOpt("A computational mistake — areas cannot be negative"), txtOpt(`${m(DX)} must be negative`), txtOpt(`${m(mi("f"))} is negative everywhere on ${AB}`)]),
-    `Rectangles below the axis have negative height ${m(fof(`<msubsup>${mi("x")}${mi("i")}${mo("*")}</msubsup>`))}, so the sum measures signed area. ${m(mi("f"))} can still be positive somewhere — try ${m(mi("x") + mo("−") + mn(2))} on ${m(ivl(mn(0), mn(3)))}.`);
+    `Rectangles below the axis have negative height ${m(fof(sub(mi("c"), mi("k"))))}, so the sum measures signed area. ${m(mi("f"))} can still be positive somewhere — try ${m(mi("x") + mo("−") + mn(2))} on ${m(ivl(mn(0), mn(3)))}.`);
   if (v === "zero") return makeQ(
     `A Riemann sum for a function that is <b>not</b> identically zero equals <b>0</b>. The best interpretation is:`,
     txtOpt("Rectangle areas above and below the x-axis cancel out"),
@@ -1063,7 +1063,7 @@ function g5() {
 // Q6 — recognising a limit of sums as a definite integral
 function g6() {
   const a = pick([0, 0, 1, 2]), L = pick([1, 1, 2, 3]), p = pick([2, 3]);
-  const step = L === 1 ? frac(mi("i"), mi("n")) : frac(row(mn(L), mi("i")), mi("n"));
+  const step = L === 1 ? frac(mi("k"), mi("n")) : frac(row(mn(L), mi("k")), mi("n"));
   const xi = a === 0 ? step : row(mn(a), mo("+"), step);
   const xp = pw => pw === 1 ? mi("x") : sup(mi("x"), mn(pw));
   const I = (lo, hi, pw) => ({ k: `${lo},${hi},${pw}`, t: m(integ(mn(lo), mn(hi), xp(pw))) });
@@ -1074,7 +1074,7 @@ function g6() {
     `Which definite integral equals ${m(LIM + sumTo(mi("n")) + sup(row(moS("("), xi, moS(")")), mn(p)) + mo("·") + frac(mn(L), mi("n")))}?`,
     I(a, a + L, p), shuffle(dist),
     `${m(DX + mo("=") + frac(mn(L), mi("n")))} means ${m(mi("b") + mo("−") + mi("a") + mo("=") + mn(L))}. ` +
-    `The points ${m(sub(mi("x"), mi("i")) + mo("=") + xi)} are right endpoints starting from ${m(mi("a") + mo("=") + mn(a))}, so ${m(mi("b") + mo("=") + mn(a + L))}; the height is ${m(sup(sub(mi("x"), mi("i")), mn(p)))}. ` +
+    `The points ${m(sub(mi("x"), mi("k")) + mo("=") + xi)} are right endpoints starting from ${m(mi("a") + mo("=") + mn(a))}, so ${m(mi("b") + mo("=") + mn(a + L))}; the height is ${m(sup(sub(mi("x"), mi("k")), mn(p)))}. ` +
     `So it is ${m(integ(mn(a), mn(a + L), xp(p)) + mo("=") + ratM(num, den))}.`);
 }
 

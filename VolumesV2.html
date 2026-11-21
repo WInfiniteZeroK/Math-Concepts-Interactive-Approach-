@@ -1,0 +1,1950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Volumes by Integration – Interactive Lesson</title>
+<!-- Fallback look, used only when common.css is not found next to this file (switched on by the script below) -->
+<style id="fallback" media="not all">
+  :root { --ink: #222; --muted: #666; --border: #d0d7de; --soft: #f6f8fa; --accent: #1565c0; --accent-soft: #e3f2fd;
+          --highlight: #fff8e1; --good: #2e7d32; --bad: #c62828; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); line-height: 1.5; background: #fff; }
+  header { padding: 18px 24px 12px; background: var(--accent); color: #fff; }
+  header h1 { margin: 0; font-size: 1.5rem; }
+  header p { margin: 4px 0 0; opacity: .9; }
+  nav { position: sticky; top: 0; z-index: 10; display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 24px; background: #fff; border-bottom: 1px solid var(--border); }
+  nav button, nav a.toc { border: 1px solid var(--border); background: var(--soft); color: var(--ink); border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: .92rem; text-decoration: none; }
+  nav button.active, nav button.active:hover { background: var(--accent) !important; color: #fff; border-color: var(--accent); }
+  main { max-width: 1180px; margin: 0 auto; padding: 16px 24px 32px; }
+  h2 { margin: 6px 0 12px; } h3 { margin: 18px 0 8px; }
+  button { font: inherit; font-size: .88rem; padding: 4px 10px; border: 1px solid var(--border); background: #fff; border-radius: 5px; cursor: pointer; margin: 2px 2px 2px 0; }
+  button:hover:not(:disabled) { background: var(--soft); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  input, select { font: inherit; font-size: .92rem; padding: 3px 5px; border: 1px solid var(--border); border-radius: 4px; }
+  .hint { color: var(--muted); font-size: .88rem; }
+  .error { color: var(--bad); } .good { color: var(--good); }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .85rem; align-items: center; }
+  .legend .swatch { display: inline-block; width: 12px; height: 12px; margin-right: 5px; vertical-align: -1px; border-radius: 2px; }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding: 16px; border-top: 1px solid var(--border); }
+  math { font-size: 1.05em; }
+</style>
+<link rel="stylesheet" href="common.css">
+<script>
+  // If common.css did not load (it defines --accent), switch the fallback look on.
+  if (!getComputedStyle(document.documentElement).getPropertyValue("--accent").trim()) document.getElementById("fallback").media = "all";
+</script>
+<style>
+  /* tab panels */
+  section { display: none; }
+  section.active { display: block; }
+  .grid2 { display: grid; grid-template-columns: 1fr 300px; gap: 16px; }
+  @media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+  canvas { width: 100%; display: block; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+  #plot { height: 380px; cursor: crosshair; touch-action: pan-y; }
+  #solid { height: 380px; cursor: grab; touch-action: pan-y; }
+  .views { display: grid; grid-template-columns: 1fr 1.2fr; gap: 8px; }
+  @media (max-width: 600px) { .views { grid-template-columns: 1fr; } }
+  .vcap { font-size: 0.8rem; color: var(--muted); margin: 0 0 2px 2px; }
+  /* Explore layout: the graphs + results stay pinned while the controls scroll (sticky is switched off by
+     layoutVars() in the script if the pinned block would not fit the screen) */
+  :root { --navh: 50px; }
+  .plotcol { background: #fff; min-width: 0; }
+  @media (min-width: 861px) and (min-height: 600px) {
+    .plotcol { position: sticky; top: calc(var(--navh) + 8px); align-self: start; z-index: 2; }
+    #plot, #solid { height: clamp(240px, calc(100vh - var(--navh) - 250px), 400px);
+                    height: clamp(240px, calc(100svh - var(--navh) - 250px), 400px); }
+  }
+  @media (max-width: 860px) {
+    #plot, #solid { height: clamp(220px, 40vh, 320px); height: clamp(220px, 40svh, 320px); }
+  }
+  @media (min-width: 601px) and (max-width: 860px) and (min-height: 800px) {
+    .plotcol { position: sticky; top: var(--navh); z-index: 2; padding-bottom: 8px;
+               border-bottom: 1px solid var(--border); box-shadow: 0 8px 8px -8px rgba(0,0,0,.25); }
+    #plot, #solid { height: 32vh; height: 32svh; }
+  }
+  .plotcol.nosticky { position: static; box-shadow: none; border-bottom: 0; }
+  .readbar { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 6px; padding: 6px 10px; font-size: 0.85rem;
+             background: var(--soft); border: 1px solid var(--border); border-radius: 6px; }
+  .readbar > div { display: flex; flex-direction: column; }
+  .readbar .lbl { color: var(--muted); font-size: 0.8rem; }
+  .readbar .val { font-family: ui-monospace, Consolas, monospace; }
+  #warn:empty, #dwarn:empty { display: none; }
+  .legend .hint { white-space: normal; }
+  .plotwrap { position: relative; }
+  .zoombar { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; }
+  .zoombar button { min-width: 28px; height: 26px; padding: 0 6px; font-size: 0.9rem; line-height: 1; opacity: 0.9; }
+  #conv { height: 280px; }
+  #cdisk, #cshell { height: 270px; }
+  .cmpgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .cmpgrid { grid-template-columns: 1fr; } }
+  .cmpgrid h3 { margin-top: 8px; }
+  .ctl { margin-bottom: 10px; }
+  .ctl label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 2px; }
+  .ctl input[type=number] { width: 80px; }
+  .ctl input[type=range] { width: 100%; }
+  .ctl[hidden] { display: none; }
+  .methods label { display: block; font-size: 0.92rem; color: var(--ink); cursor: pointer; }
+  .methods label.sub { color: var(--muted); font-size: .85rem; cursor: default; }
+  .big { font-size: 1.15rem; font-weight: bold; color: var(--accent); }
+  #sigma { background: var(--soft); border: 1px dashed var(--border); border-radius: 6px;
+           padding: 8px 10px; overflow-x: auto; white-space: nowrap; }
+  #sigma div { margin: 4px 0; }
+  #sigma .intline { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
+  #sigma .intline button { margin-left: 8px; }
+  #sigma .res { color: var(--accent); }
+  #tip { position: fixed; pointer-events: none; background: #222; color: #fff; font-size: 0.8rem;
+         padding: 5px 8px; border-radius: 4px; display: none; z-index: 20; line-height: 1.35; }
+  .formula { background: var(--accent-soft); border-left: 4px solid var(--accent); padding: 10px 12px;
+             border-radius: 4px; margin: 8px 0; font-size: 1.1rem; text-align: center; overflow-x: auto; }
+  .apps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .apps > div { background: var(--soft); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; font-size: 0.92rem; }
+  .apps .formula { font-size: 1rem; padding: 6px 8px; }
+  .q { border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; }
+  .q p.stem { margin: 0 0 6px; font-weight: 600; }
+  .q label { display: block; padding: 4px 6px; border-radius: 4px; cursor: pointer; }
+  .q label:hover { background: var(--soft); }
+  .q label.right { background: #e8f5e9; }
+  .q label.wrong { background: #ffebee; }
+  .fb { margin-top: 6px; font-size: 0.9rem; display: none; }
+  #score { font-size: 1.1rem; font-weight: bold; }
+  .task { background: var(--highlight); padding: 6px 10px; border-radius: 4px; font-size: 0.92rem; margin: 6px 0; }
+  .explain, .proof { margin-top: 6px; }
+  .explain summary, .proof summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: 0.88rem; }
+  .explain[open], .proof[open] { background: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px; }
+  .explain p, .proof p { margin: 6px 0; }
+  .proof { margin: 12px 0; }
+  .proof summary { font-size: 0.95rem; }
+  .ctl .gtoggle { display: block; font-size: 0.92rem; color: var(--ink); cursor: pointer; margin-bottom: 0; }
+  table.mini { border-collapse: collapse; margin: 4px 0; font-size: 0.88rem; }
+  table.mini th, table.mini td { border: 1px solid var(--border); padding: 3px 10px; text-align: center; }
+  .custom { margin-top: 8px; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--soft); }
+  .custom[hidden] { display: none; }
+  .custom .row { display: flex; gap: 6px; }
+  #cexpr, #gexpr, #hexpr { flex: 1; min-width: 0; font-family: ui-monospace, Consolas, monospace; font-size: 0.95rem; padding: 4px 6px; }
+  .cprev { min-height: 1.8em; margin: 6px 0; overflow-x: auto; }
+  .cprev.error { font-size: 0.85rem; }
+  .chips { font-size: 0.8rem; color: var(--muted); }
+  .chips button { font-size: 0.75rem; padding: 1px 6px; margin: 2px 1px; font-family: ui-monospace, Consolas, monospace; }
+  .chelp { font-size: 0.82rem; margin-top: 6px; }
+  .chelp summary { cursor: pointer; color: var(--accent); }
+  .chelp code { background: #fff; border: 1px solid var(--border); border-radius: 3px; padding: 0 3px; }
+  .problem { font-size: 1.02rem; padding: 8px 12px; background: var(--soft); border: 1px solid var(--border); border-radius: 6px; }
+  .key { border-left: 5px solid var(--good); background: #f1f8e9; padding: 10px 14px; border-radius: 6px; margin: 10px 0; }
+  .key ul { margin: 6px 0 0; padding-left: 20px; }
+  .key li { margin: 3px 0; }
+  table.data { border-collapse: collapse; margin: 8px 0; }
+  table.data th, table.data td { border: 1px solid var(--border); padding: 4px 12px; text-align: center; }
+  table.data th { background: #f5f5f5; font-weight: normal; color: var(--muted); }
+  table.data td.l { text-align: left; }
+  ol.tight li { margin: 6px 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Volumes by Integration: Slices, Disks and Shells</h1>
+  <p>Single Variable Calculus · From stacked slabs to the definite integral</p>
+</header>
+<nav>
+  <a class="toc" href="index.html">☰ Table of Contents</a>
+  <button class="active" data-t="idea">1 · Idea</button>
+  <button data-t="explore">2 · Explore</button>
+  <button data-t="compare">3 · Disk vs Shell</button>
+  <button data-t="apps">4 · Why it matters</button>
+  <button data-t="quiz">5 · Check quiz</button>
+</nav>
+<main>
+
+<section id="idea" class="active">
+  <h2>1. The idea</h2>
+  <p>We want the volume of a solid. Curved solids are hard; thin slabs are easy, because a slab is almost a prism or a cylinder:
+     its volume is about (area of its face) × (thickness). So:</p>
+  <ol>
+    <li>Split <math><mo>[</mo><mi>a</mi><mo>,</mo><mi>b</mi><mo>]</mo></math> into <math><mi>n</mi></math> equal subintervals of width
+        <math><mi mathvariant="normal">Δ</mi><mi>x</mi><mo>=</mo><mfrac><mrow><mi>b</mi><mo>−</mo><mi>a</mi></mrow><mi>n</mi></mfrac></math>
+        and cut the solid into <math><mi>n</mi></math> slabs perpendicular to the <math><mi>x</mi></math>-axis. The <math><mi>k</mi></math>-th subinterval is <math><mo>[</mo><msub><mi>x</mi><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>x</mi><mi>k</mi></msub><mo>]</mo></math>, with <math><msub><mi>x</mi><mn>0</mn></msub><mo>=</mo><mi>a</mi></math> and <math><msub><mi>x</mi><mi>n</mi></msub><mo>=</mo><mi>b</mi></math>.</li>
+    <li>In each subinterval pick a <b>sample point</b> <math><msub><mi>c</mi><mi>k</mi></msub></math>: any point of it, e.g. the left endpoint <math><msub><mi>x</mi><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow></msub></math>, the right endpoint <math><msub><mi>x</mi><mi>k</mi></msub></math> or the midpoint <math><msub><mover><mi>x</mi><mo>‾</mo></mover><mi>k</mi></msub></math>.
+        Replace the slab by a straight prism whose face is the cross-section there, with area
+        <math><mi>A</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mi>k</mi></msub><mo stretchy="false">)</mo></math>.</li>
+    <li>Each prism has volume <math><mi>A</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mi>k</mi></msub><mo stretchy="false">)</mo><mspace width="0.17em"/><mi mathvariant="normal">Δ</mi><mi>x</mi></math>. Add them up and let the slabs get thinner.</li>
+  </ol>
+  <div class="formula">
+    <math displaystyle="true">
+      <msub><mi>V</mi><mi>n</mi></msub><mo>=</mo>
+      <munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover>
+      <mi>A</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mi>k</mi></msub><mo stretchy="false">)</mo><mspace width="0.17em"/><mi mathvariant="normal">Δ</mi><mi>x</mi>
+      <mspace width="1.5em"/><mo>⟶</mo><mspace width="1.5em"/>
+      <mi>V</mi><mo>=</mo>
+      <msubsup><mo>∫</mo><mi>a</mi><mi>b</mi></msubsup><mi>A</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mspace width="0.17em"/><mi>d</mi><mi>x</mi>
+      <mo>=</mo>
+      <munder><mo movablelimits="false">lim</mo><mrow><mi>n</mi><mo>→</mo><mi>∞</mi></mrow></munder>
+      <munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover>
+      <mi>A</mi><mo stretchy="false">(</mo><msub><mi>c</mi><mi>k</mi></msub><mo stretchy="false">)</mo><mspace width="0.17em"/><mi mathvariant="normal">Δ</mi><mi>x</mi>
+    </math>
+  </div>
+  <p class="hint">This is a Riemann sum where the area <math><mi>A</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math> takes the place of the height
+     <math><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math>.
+     <b>Cavalieri's principle</b> follows straight away: two solids whose cross-sections have equal areas at every <math><mi>x</mi></math> have equal volumes.</p>
+
+  <h3>Before you start</h3>
+  <p class="hint">You will use: definite integrals as limits of Riemann sums · area between curves (in <math><mi>x</mi></math> and in <math><mi>y</mi></math>) ·
+     finding where curves intersect · sketching the region · substitution, integration by parts and trig identities.</p>
+
+  <h3>Three ways to slice</h3>
+  <div class="apps">
+    <div><b>Cross-sections (slicing)</b><br>A flat base region sits in the plane. Slices perpendicular to the <math><mi>x</mi></math>-axis are squares, semicircles, triangles… of side
+      <math><mi>s</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math>.
+      <div class="formula"><math displaystyle="true"><mi>V</mi><mo>=</mo><msubsup><mo>∫</mo><mi>a</mi><mi>b</mi></msubsup><mi>A</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mspace width="0.17em"/><mi>d</mi><mi>x</mi></math></div>
+      Squares: <math><mi>A</mi><mo>=</mo><msup><mi>s</mi><mn>2</mn></msup></math>. Semicircles on diameter <math><mi>s</mi></math>: <math><mi>A</mi><mo>=</mo><mfrac><mi>π</mi><mn>8</mn></mfrac><msup><mi>s</mi><mn>2</mn></msup></math>.
+      Equilateral triangles: <math><mi>A</mi><mo>=</mo><mfrac><msqrt><mn>3</mn></msqrt><mn>4</mn></mfrac><msup><mi>s</mi><mn>2</mn></msup></math>.</div>
+    <div><b>Disk method</b><br>Rotate the region between a curve and the axis <i>about that axis</i>. Each slab is a disk of radius <math><mi>R</mi></math>, face area <math><mi>π</mi><msup><mi>R</mi><mn>2</mn></msup></math>.
+      <div class="formula"><math displaystyle="true"><mi>V</mi><mo>=</mo><mi>π</mi><msubsup><mo>∫</mo><mi>a</mi><mi>b</mi></msubsup><msup><mrow><mo>[</mo><mi>R</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>]</mo></mrow><mn>2</mn></msup><mspace width="0.17em"/><mi>d</mi><mi>x</mi></math></div>
+      About the <math><mi>y</mi></math>-axis use horizontal slabs:
+      <math><mi>V</mi><mo>=</mo><mi>π</mi><msubsup><mo>∫</mo><mi>c</mi><mi>d</mi></msubsup><msup><mrow><mo>[</mo><mi>R</mi><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo><mo>]</mo></mrow><mn>2</mn></msup><mspace width="0.17em"/><mi>d</mi><mi>y</mi></math>.</div>
+    <div><b>Shell method</b><br>Rotate about an axis <i>parallel</i> to the strips. Each strip sweeps out a thin cylindrical shell; unrolled, it is a sheet of size
+      <math><mn>2</mn><mi>π</mi><mi>r</mi><mo>×</mo><mi>h</mi><mo>×</mo><mi mathvariant="normal">Δ</mi><mi>x</mi></math>.
+      <div class="formula"><math displaystyle="true"><mi>V</mi><mo>=</mo><mn>2</mn><mi>π</mi><msubsup><mo>∫</mo><mi>a</mi><mi>b</mi></msubsup><mi>r</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mspace width="0.17em"/><mi>h</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mspace width="0.17em"/><mi>d</mi><mi>x</mi></math></div>
+      About the <math><mi>x</mi></math>-axis use horizontal strips:
+      <math><mi>V</mi><mo>=</mo><mn>2</mn><mi>π</mi><msubsup><mo>∫</mo><mi>c</mi><mi>d</mi></msubsup><mi>r</mi><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo><mspace width="0.17em"/><mi>h</mi><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo><mspace width="0.17em"/><mi>d</mi><mi>y</mi></math>.</div>
+    <div><b>Washers (region between two curves)</b><br>If the region lies between two curves and does not reach the axis, each slab is a disk with a hole: a <b>washer</b>.
+      Volume is additive: the big solid minus the small one.
+      <div class="formula" style="font-size:.88rem;padding:6px 4px"><math displaystyle="true"><mi>V</mi><mo>=</mo><mi>π</mi><msubsup><mo>∫</mo><mi>a</mi><mi>b</mi></msubsup><mrow><mo>(</mo><msup><mrow><mo>[</mo><mi>R</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>]</mo></mrow><mn>2</mn></msup><mo>−</mo><msup><mrow><mo>[</mo><mi>r</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>]</mo></mrow><mn>2</mn></msup><mo>)</mo></mrow><mspace width="0.17em"/><mi>d</mi><mi>x</mi></math></div>
+      <math><mi>R</mi></math> = distance from the axis to the farther curve, <math><mi>r</mi></math> = to the nearer one.
+      With shells, a region between <math><mi>y</mi><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math> (top) and <math><mi>y</mi><mo>=</mo><mi>g</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math> (bottom) just has height
+      <math><mi>h</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>−</mo><mi>g</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math>.</div>
+  </div>
+  <p class="hint">The disk method is a special case of <math><mi>V</mi><mo>=</mo><mo>∫</mo><mi>A</mi><mspace width="0.17em"/><mi>d</mi><mi>x</mi></math>, with circular cross-sections <math><mi>A</mi><mo>=</mo><mi>π</mi><msup><mi>R</mi><mn>2</mn></msup></math>
+     (or annular ones, <math><mi>A</mi><mo>=</mo><mi>π</mi><mo stretchy="false">(</mo><msup><mi>R</mi><mn>2</mn></msup><mo>−</mo><msup><mi>r</mi><mn>2</mn></msup><mo stretchy="false">)</mo></math>, for washers).
+     The shell method slices the solid differently: into nested cylinders instead of flat slabs. Its integrand <math><mn>2</mn><mi>π</mi><mi>r</mi><mi>h</mi></math> is the area of a cylinder's curved surface, not of a flat cross-section.
+     When the region does not touch the axis, a disk gets a hole (a washer) and a shell simply gets shorter. Tick <b>Second curve g(x)</b> in the Explore tab to try it.</p>
+
+  <details class="proof"><summary>Where does the shell formula come from? (derivation)</summary>
+    <p>A shell is the solid between two cylinders of the same height <math><mi>h</mi></math>. Let <math><mi>r</mi></math> be its <b>mid-radius</b> and
+      <math><mi mathvariant="normal">Δ</mi><mi>r</mi></math> its thickness, so the inner radius is <math><mi>r</mi><mo>−</mo><mfrac><mrow><mi mathvariant="normal">Δ</mi><mi>r</mi></mrow><mn>2</mn></mfrac></math>
+      and the outer radius is <math><mi>r</mi><mo>+</mo><mfrac><mrow><mi mathvariant="normal">Δ</mi><mi>r</mi></mrow><mn>2</mn></mfrac></math>. Outer cylinder minus inner cylinder:</p>
+    <div class="formula"><math displaystyle="true">
+      <mi mathvariant="normal">Δ</mi><mi>V</mi><mo>=</mo>
+      <mi>π</mi><msup><mrow><mo>(</mo><mi>r</mi><mo>+</mo><mfrac><mrow><mi mathvariant="normal">Δ</mi><mi>r</mi></mrow><mn>2</mn></mfrac><mo>)</mo></mrow><mn>2</mn></msup><mi>h</mi>
+      <mo>−</mo>
+      <mi>π</mi><msup><mrow><mo>(</mo><mi>r</mi><mo>−</mo><mfrac><mrow><mi mathvariant="normal">Δ</mi><mi>r</mi></mrow><mn>2</mn></mfrac><mo>)</mo></mrow><mn>2</mn></msup><mi>h</mi>
+      <mo>=</mo><mi>π</mi><mi>h</mi><mo>·</mo><mn>2</mn><mi>r</mi><mo>·</mo><mi mathvariant="normal">Δ</mi><mi>r</mi>
+      <mo>=</mo><mn>2</mn><mi>π</mi><mi>r</mi><mi>h</mi><mspace width="0.17em"/><mi mathvariant="normal">Δ</mi><mi>r</mi>
+    </math></div>
+    <p>The middle step is the difference of squares <math><msup><mi>A</mi><mn>2</mn></msup><mo>−</mo><msup><mi>B</mi><mn>2</mn></msup><mo>=</mo><mo stretchy="false">(</mo><mi>A</mi><mo>+</mo><mi>B</mi><mo stretchy="false">)</mo><mo stretchy="false">(</mo><mi>A</mi><mo>−</mo><mi>B</mi><mo stretchy="false">)</mo><mo>=</mo><mn>2</mn><mi>r</mi><mo>·</mo><mi mathvariant="normal">Δ</mi><mi>r</mi></math>.
+      Nothing was approximated: the formula is <b>exact</b> when <math><mi>r</mi></math> is the mid-radius.
+      Mnemonic: cut the shell open and flatten it into a slab of length <math><mn>2</mn><mi>π</mi><mi>r</mi></math>, height <math><mi>h</mi></math> and thickness <math><mi mathvariant="normal">Δ</mi><mi>r</mi></math>.</p>
+    <p>Now rotate the region under <math><mi>y</mi><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math> on <math><mo>[</mo><mi>a</mi><mo>,</mo><mi>b</mi><mo>]</mo></math>
+      (<math><mi>b</mi><mo>&gt;</mo><mi>a</mi><mo>≥</mo><mn>0</mn></math>) about the <math><mi>y</mi></math>-axis. The strip on
+      <math><mo>[</mo><msub><mi>x</mi><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>x</mi><mi>k</mi></msub><mo>]</mo></math> becomes approximately a shell with
+      <math><mi>r</mi><mo>=</mo><msub><mover><mi>x</mi><mo>‾</mo></mover><mi>k</mi></msub></math> (the midpoint),
+      <math><mi>h</mi><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><msub><mover><mi>x</mi><mo>‾</mo></mover><mi>k</mi></msub><mo stretchy="false">)</mo></math> and
+      <math><mi mathvariant="normal">Δ</mi><mi>r</mi><mo>=</mo><mi mathvariant="normal">Δ</mi><mi>x</mi></math>:</p>
+    <div class="formula"><math displaystyle="true">
+      <mi>V</mi><mo>=</mo><munder><mo movablelimits="false">lim</mo><mrow><mi>n</mi><mo>→</mo><mi>∞</mi></mrow></munder>
+      <munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover>
+      <mn>2</mn><mi>π</mi><mspace width="0.17em"/><msub><mover><mi>x</mi><mo>‾</mo></mover><mi>k</mi></msub><mspace width="0.17em"/><mi>f</mi><mo stretchy="false">(</mo><msub><mover><mi>x</mi><mo>‾</mo></mover><mi>k</mi></msub><mo stretchy="false">)</mo><mspace width="0.17em"/><mi mathvariant="normal">Δ</mi><mi>x</mi>
+      <mo>=</mo><msubsup><mo>∫</mo><mi>a</mi><mi>b</mi></msubsup><mn>2</mn><mi>π</mi><mi>x</mi><mspace width="0.17em"/><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mspace width="0.17em"/><mi>d</mi><mi>x</mi>
+    </math></div>
+    <p><b>Why the midpoint?</b> The only approximation is the height: the strip has a curved top, the shell a flat one. With the midpoint, the radius part is exact,
+      since <math><mn>2</mn><mi>π</mi><msub><mover><mi>x</mi><mo>‾</mo></mover><mi>k</mi></msub><mspace width="0.17em"/><mi mathvariant="normal">Δ</mi><mi>x</mi><mo>=</mo><mi>π</mi><mo stretchy="false">(</mo><msubsup><mi>x</mi><mi>k</mi><mn>2</mn></msubsup><mo>−</mo><msubsup><mi>x</mi><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow><mn>2</mn></msubsup><mo stretchy="false">)</mo></math> is exactly the area of the ring the shell stands on.
+      With Left or Right endpoints, <math><mn>2</mn><mi>π</mi><msub><mi>x</mi><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow></msub><mi>f</mi><mo stretchy="false">(</mo><msub><mi>x</mi><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false">)</mo><mi mathvariant="normal">Δ</mi><mi>x</mi></math> is <i>not</i> the volume of the shell you see:
+      the radius is off as well as the height. In the Explore tab, choose Shells with a small <math><mi>n</mi></math> and compare the three rules. All three still converge to the same integral as <math><mi>n</mi><mo>→</mo><mi>∞</mi></math>.</p>
+    <p><b>Washers</b> come out the same way: a washer of thickness <math><mi mathvariant="normal">Δ</mi><mi>x</mi></math> is a disk of radius <math><mi>R</mi></math> minus a disk of radius <math><mi>r</mi></math>, so
+      <math><mi mathvariant="normal">Δ</mi><mi>V</mi><mo>=</mo><mi>π</mi><msup><mi>R</mi><mn>2</mn></msup><mi mathvariant="normal">Δ</mi><mi>x</mi><mo>−</mo><mi>π</mi><msup><mi>r</mi><mn>2</mn></msup><mi mathvariant="normal">Δ</mi><mi>x</mi><mo>=</mo><mi>π</mi><mo stretchy="false">(</mo><msup><mi>R</mi><mn>2</mn></msup><mo>−</mo><msup><mi>r</mi><mn>2</mn></msup><mo stretchy="false">)</mo><mi mathvariant="normal">Δ</mi><mi>x</mi></math>.</p>
+  </details>
+
+  <h3>Rotating about other axes</h3>
+  <p>The formulas stay the same. Only the radius changes: it is always measured <b>from the axis of rotation</b>.</p>
+  <table class="data">
+    <tr><th>Axis of rotation</th><th>Method</th><th>Radius</th></tr>
+    <tr><td><math><mi>y</mi><mo>=</mo><mi>p</mi></math> (horizontal)</td><td>Disks in <math><mi>x</mi></math></td>
+        <td class="l"><math><mi>R</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>−</mo><mi>p</mi></math> if the curve is above the line,
+            <math><mi>p</mi><mo>−</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math> if below</td></tr>
+    <tr><td><math><mi>x</mi><mo>=</mo><mi>q</mi></math> (vertical)</td><td>Shells in <math><mi>x</mi></math></td>
+        <td class="l"><math><mi>r</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>x</mi><mo>−</mo><mi>q</mi></math> if the region is to the right of the axis,
+            <math><mi>q</mi><mo>−</mo><mi>x</mi></math> if to the left</td></tr>
+  </table>
+  <p class="hint">For washers, measure <b>both</b> radii from the axis: <math><mi>R</mi></math> to the farther curve and <math><mi>r</mi></math> to the nearer one.
+     For example, between <math><mi>y</mi><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math> and <math><mi>y</mi><mo>=</mo><mi>g</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math> (both above <math><mi>y</mi><mo>=</mo><mi>p</mi></math>, <math><mi>f</mi><mo>≥</mo><mi>g</mi></math>):
+     <math><mi>R</mi><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>−</mo><mi>p</mi></math>, <math><mi>r</mi><mo>=</mo><mi>g</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>−</mo><mi>p</mi></math>.</p>
+
+  <div class="key"><b>Common errors to watch for</b>
+    <ul>
+      <li>Forgetting the <math><mi>π</mi></math> (disks) or the <math><mn>2</mn><mi>π</mi></math> (shells).</li>
+      <li>Washers: writing <math><mi>π</mi><msup><mrow><mo stretchy="false">(</mo><mi>R</mi><mo>−</mo><mi>r</mi><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></math> instead of <math><mi>π</mi><mo stretchy="false">(</mo><msup><mi>R</mi><mn>2</mn></msup><mo>−</mo><msup><mi>r</mi><mn>2</mn></msup><mo stretchy="false">)</mo></math>. Square each radius first, then subtract.</li>
+      <li>Measuring the radius from <math><mi>x</mi><mo>=</mo><mn>0</mn></math> or <math><mi>y</mi><mo>=</mo><mn>0</mn></math> when the axis is somewhere else.</li>
+      <li>Limits of integration in the wrong variable: with <math><mi>d</mi><mi>y</mi></math> the limits are <math><mi>y</mi></math>-values.</li>
+      <li>Mixing variables, such as <math><mi>π</mi><mo>∫</mo><msup><mi>x</mi><mn>2</mn></msup><mspace width="0.17em"/><mi>d</mi><mi>y</mi></math> without first writing <math><mi>x</mi></math> as a function of <math><mi>y</mi></math>.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="explore">
+  <h2>2. Explore</h2>
+  <div class="grid2">
+    <div class="plotcol" id="plotcol">
+      <div class="views">
+        <div>
+          <p class="vcap" id="cap2d">Region and strips</p>
+          <div class="plotwrap"><canvas id="plot"></canvas></div>
+        </div>
+        <div>
+          <p class="vcap">The solid (drag to turn)</p>
+          <div class="plotwrap">
+            <canvas id="solid"></canvas>
+            <div class="zoombar">
+              <button id="zin" title="Zoom in">+</button>
+              <button id="zout" title="Zoom out">−</button>
+              <button id="zreset" title="Reset view (or double-click the solid)">Reset</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="legend" style="margin-top:6px">
+        <span><i class="swatch" style="background:rgba(120,144,156,.35)"></i>region</span>
+        <span><i class="swatch" style="background:rgba(21,101,192,.55)"></i>strip → slab</span>
+        <span><i class="swatch" style="background:#ef6c00"></i>selected slab</span>
+        <span><i class="swatch" style="background:#6a1b9a;border-radius:50%"></i>sample point <math><msub><mi>c</mi><mi>k</mi></msub></math></span>
+        <span id="lgg" style="display:none"><i class="swatch" style="background:#2e7d32;height:3px"></i>second curve <math><mi>g</mi></math></span>
+        <span id="lgaxis"><i class="swatch" style="background:#c62828;height:3px"></i>axis of rotation</span>
+        <span class="hint">Hover or tap a strip in the left graph to see its slab in the solid. Turn the solid by dragging (touch: drag sideways, or use two fingers to tilt). Zoom: + / − or Ctrl + scroll. Double-click to reset.</span>
+      </div>
+      <div class="readbar">
+        <div><span class="lbl"><math><mi mathvariant="normal">Δ</mi><mi>x</mi></math></span><span id="rdx" class="val"></span></div>
+        <div><span class="lbl">Sum of slab volumes <math><msub><mi>V</mi><mi>n</mi></msub></math></span><span id="rs" class="val big"></span></div>
+        <div><span class="lbl" id="lex">Exact <math><mi>V</mi></math></span><span id="rex" class="val"></span></div>
+        <div><span class="lbl" id="lerr">Error <math><msub><mi>V</mi><mi>n</mi></msub><mo>−</mo><mi>V</mi></math></span><span id="rerr" class="val"></span></div>
+        <div><span class="lbl">Relative error</span><span id="rrel" class="val"></span></div>
+      </div>
+      <p id="dwarn" style="font-size:.85rem;color:var(--bad);margin:6px 0 0"></p>
+    </div>
+    <div>
+      <div class="ctl">
+        <label>Function</label>
+        <select id="fn" style="width:100%"></select>
+        <div id="custombox" class="custom" hidden>
+          <label for="cexpr">Type <math><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math>, then press Enter or Plot</label>
+          <div class="row"><input id="cexpr" type="text" value="1 + x/2" spellcheck="false" autocomplete="off"><button id="capply" class="primary">Plot</button></div>
+          <div id="cprev" class="cprev"></div>
+          <div class="chips">Examples:
+            <button data-e="1 + x/2">1 + x/2</button><button data-e="e^(-x^2)">e^(-x^2)</button><button data-e="2 + sin(2x)">2 + sin(2x)</button>
+            <button data-e="sqrt(9 - x^2)">sqrt(9 - x^2)</button><button data-e="x e^(-x)">x e^(-x)</button><button data-e="1/x">1/x</button><button data-e="2">2</button>
+          </div>
+          <details class="chelp"><summary>What can I type?</summary>
+            <p>Operations <code>+ - * / ^</code> and brackets. Multiplication can be implied: <code>2x</code>, <code>3sin(x)</code>, <code>(x+1)(x-1)</code>.</p>
+            <p>Functions (always with brackets): <code>sin cos tan sec csc cot asin acos atan sinh cosh tanh exp sqrt cbrt abs</code>,
+               <code>ln</code> (natural log), <code>log</code> (base 10). <code>|x|</code> also works. Constants <code>pi</code> and <code>e</code>.</p>
+            <p>For a custom function the exact volume is replaced by a high-accuracy <b>numerical reference</b>.
+               Try <code>e^(-x^2)</code> with disks: <math><mi>π</mi><mo>∫</mo><msup><mi>e</mi><mrow><mo>−</mo><mn>2</mn><msup><mi>x</mi><mn>2</mn></msup></mrow></msup><mspace width="0.17em"/><mi>d</mi><mi>x</mi></math> has no antiderivative formula, so the slab sum is the only way to get the number.</p>
+          </details>
+        </div>
+      </div>
+      <div class="ctl">
+        <label class="gtoggle"><input type="checkbox" id="gon"> Second curve <math><mi>g</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math>: use the region between <math><mi>f</mi></math> and <math><mi>g</mi></math></label>
+        <div id="gbox" class="custom" hidden>
+          <label for="gexpr">Type <math><mi>g</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math>, then press Enter or Plot</label>
+          <div class="row"><input id="gexpr" type="text" value="x/2" spellcheck="false" autocomplete="off"><button id="gapply" class="primary">Plot</button></div>
+          <div id="gprev" class="cprev"></div>
+          <div class="chips">Examples:
+            <button data-e="x/2">x/2</button><button data-e="x^2">x^2</button><button data-e="1">1</button><button data-e="0.5">0.5</button><button data-e="sqrt(x)">sqrt(x)</button>
+          </div>
+          <p class="hint" style="margin:6px 0 0">Disks become <b>washers</b> <math><mi>π</mi><mo stretchy="false">(</mo><msup><mi>R</mi><mn>2</mn></msup><mo>−</mo><msup><mi>r</mi><mn>2</mn></msup><mo stretchy="false">)</mo><mi mathvariant="normal">Δ</mi><mi>x</mi></math>,
+            shells get height <math><mo>|</mo><mi>f</mi><mo>−</mo><mi>g</mi><mo>|</mo></math>, cross-sections get side <math><mo>|</mo><mi>f</mi><mo>−</mo><mi>g</mi><mo>|</mo></math>.
+            Unticked, the region reaches down to the axis (disks) or the <math><mi>x</mi></math>-axis (shells, cross-sections).</p>
+        </div>
+      </div>
+      <div class="ctl" style="display:flex;gap:10px">
+        <div><label><math><mi>a</mi></math></label><input type="number" id="a" step="0.5"></div>
+        <div><label><math><mi>b</mi></math></label><input type="number" id="b" step="0.5"></div>
+      </div>
+      <p id="warn" class="error" style="font-size:.85rem;margin:-4px 0 10px"></p>
+      <div class="ctl methods">
+        <label class="sub">Method</label>
+        <label><input type="radio" name="meth" value="slice"> Cross-sections on a base region</label>
+        <label><input type="radio" name="meth" value="disk" checked> Disks / washers: rotate about a horizontal line</label>
+        <label><input type="radio" name="meth" value="shell"> Shells: rotate about a vertical line</label>
+      </div>
+      <div class="ctl" id="axisbox">
+        <label id="axislbl">Axis of rotation</label>
+        <input type="number" id="axis" step="0.5" value="0">
+      </div>
+      <div class="ctl" id="shapebox" hidden>
+        <label>Cross-section shape, standing on the width <math><mi>s</mi></math> of the base region
+          (<math><mi>s</mi><mo>=</mo><mo>|</mo><mi>f</mi><mo>|</mo></math>, or <math><mo>|</mo><mi>f</mi><mo>−</mo><mi>g</mi><mo>|</mo></math> with a second curve)</label>
+        <select id="shape" style="width:100%"></select>
+        <div id="hbox" class="custom" hidden>
+          <label for="hexpr">Rectangle height <math><mi>h</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math>: type it, then press Enter or Plot</label>
+          <div class="row"><input id="hexpr" type="text" value="x" spellcheck="false" autocomplete="off"><button id="happly" class="primary">Plot</button></div>
+          <div id="hprev" class="cprev"></div>
+          <div class="chips">Examples:
+            <button data-e="x">x</button><button data-e="x tan(pi/6)">x tan(pi/6)</button><button data-e="1">1</button><button data-e="2 - x">2 - x</button>
+          </div>
+          <p class="hint" style="margin:6px 0 0">Cross-section area <math><mi>A</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>s</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>·</mo><mi>h</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math>.
+            Unlike the other shapes, the height need not depend on <math><mi>s</mi></math>, so any solid whose slices are rectangles fits. Example: the wedge cut from a cylinder of radius 2 by a plane at 45° through a diameter: base between <code>sqrt(4 - x^2)</code> and <code>-sqrt(4 - x^2)</code> on [0, 2], height <code>x</code>.</p>
+        </div>
+      </div>
+      <div class="ctl">
+        <label>Number of slabs <math><mi>n</mi><mo>=</mo></math> <b id="nval">5</b></label>
+        <input type="range" id="n" min="1" max="100" value="5">
+        <div>
+          <button id="nminus">−1</button><button id="nplus">+1</button>
+          <button id="ndouble">×2</button><button id="anim" class="primary">▶ Animate</button>
+        </div>
+      </div>
+      <div class="ctl methods">
+        <label class="sub">Sample point rule</label>
+        <label><input type="radio" name="m" value="L"> Left endpoint</label>
+        <label><input type="radio" name="m" value="R"> Right endpoint</label>
+        <label><input type="radio" name="m" value="M" checked> Midpoint</label>
+      </div>
+      <div class="ctl methods">
+        <label class="sub">3-D view</label>
+        <label><input type="checkbox" id="cut" checked> Cut away a quarter</label>
+        <label><input type="checkbox" id="smooth"> Show the exact solid instead of slabs</label>
+      </div>
+    </div>
+  </div>
+  <h3>Sum written out</h3>
+  <div id="sigma"></div>
+  <h3>Try these <button id="toggleEx" style="font-size:.8rem;margin-left:8px">Show all explanations</button></h3>
+  <p class="hint">Try each one in the explorer first, then open the explanation to check your reasoning.</p>
+  <div class="task">① Cone: <math><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>x</mi></math> on
+    <math><mo>[</mo><mn>0</mn><mo>,</mo><mn>3</mn><mo>]</mo></math>, disks about the <math><mi>x</mi></math>-axis, <math><mi>n</mi><mo>=</mo><mn>5</mn></math>.
+    Compare Left, Right and Midpoint with the cone formula <math><mfrac><mn>1</mn><mn>3</mn></mfrac><mi>π</mi><msup><mi>r</mi><mn>2</mn></msup><mi>h</mi></math>. Which rule overestimates, and why?
+    <details class="explain"><summary>Show explanation</summary>
+      <p>The cone has <math><mi>r</mi><mo>=</mo><mn>3</mn></math>, <math><mi>h</mi><mo>=</mo><mn>3</mn></math>, so
+        <math><mi>V</mi><mo>=</mo><mfrac><mn>1</mn><mn>3</mn></mfrac><mi>π</mi><mo>·</mo><mn>9</mn><mo>·</mo><mn>3</mn><mo>=</mo><mn>9</mn><mi>π</mi><mo>≈</mo><mn>28.274</mn></math>, and
+        <math><mi>π</mi><msubsup><mo>∫</mo><mn>0</mn><mn>3</mn></msubsup><msup><mi>x</mi><mn>2</mn></msup><mspace width="0.17em"/><mi>d</mi><mi>x</mi><mo>=</mo><mn>9</mn><mi>π</mi></math> agrees.</p>
+      <table class="mini">
+        <tr><th>rule</th><th><math><msub><mi>V</mi><mn>5</mn></msub></math></th><th>vs exact</th></tr>
+        <tr><td>Left</td><td>6.48π ≈ 20.36</td><td>under</td></tr>
+        <tr><td>Right</td><td>11.88π ≈ 37.32</td><td>over</td></tr>
+        <tr><td>Midpoint</td><td>8.91π ≈ 27.99</td><td>slightly under</td></tr>
+      </table>
+      <p>The radius <math><mi>x</mi></math> grows from left to right, so every left disk is thinner than the cone there and every right disk is fatter.
+        It is the same reasoning as for Riemann sums, applied to <math><mi>A</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>π</mi><msup><mi>x</mi><mn>2</mn></msup></math>, which is increasing.</p>
+    </details>
+  </div>
+  <div class="task">② Sphere: <math><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><msqrt><mn>4</mn><mo>−</mo><msup><mi>x</mi><mn>2</mn></msup></msqrt></math> on
+    <math><mo>[</mo><mo>−</mo><mn>2</mn><mo>,</mo><mn>2</mn><mo>]</mo></math>, disks about the <math><mi>x</mi></math>-axis, Midpoint rule with <math><mi>n</mi><mo>=</mo><mn>4</mn></math>.
+    Why does the sum <i>over</i>estimate <math><mfrac><mn>4</mn><mn>3</mn></mfrac><mi>π</mi><msup><mi>r</mi><mn>3</mn></msup></math>?
+    <details class="explain"><summary>Show explanation</summary>
+      <p>Squaring the radius removes the square root: <math><mi>A</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>π</mi><mo stretchy="false">(</mo><mn>4</mn><mo>−</mo><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">)</mo></math>, a downward parabola.
+        So <math><mi>V</mi><mo>=</mo><mi>π</mi><msubsup><mo>∫</mo><mrow><mo>−</mo><mn>2</mn></mrow><mn>2</mn></msubsup><mo stretchy="false">(</mo><mn>4</mn><mo>−</mo><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">)</mo><mspace width="0.17em"/><mi>d</mi><mi>x</mi><mo>=</mo><mfrac><mrow><mn>32</mn><mi>π</mi></mrow><mn>3</mn></mfrac><mo>≈</mo><mn>33.510</mn></math>, which is <math><mfrac><mn>4</mn><mn>3</mn></mfrac><mi>π</mi><msup><mn>2</mn><mn>3</mn></msup></math>.</p>
+      <p>With <math><mi>n</mi><mo>=</mo><mn>4</mn></math> the midpoints are <math><mo>±</mo><mn>0.5</mn><mo>,</mo><mo>±</mo><mn>1.5</mn></math>, giving
+        <math><msub><mi>V</mi><mn>4</mn></msub><mo>=</mo><mi>π</mi><mo>·</mo><mn>1</mn><mo>·</mo><mo stretchy="false">(</mo><mn>1.75</mn><mo>+</mo><mn>3.75</mn><mo>+</mo><mn>3.75</mn><mo>+</mo><mn>1.75</mn><mo stretchy="false">)</mo><mo>=</mo><mn>11</mn><mi>π</mi><mo>≈</mo><mn>34.558</mn></math>.
+        For a function that curves downward, the midpoint value is above the average value on each piece, so the midpoint rule overestimates.</p>
+    </details>
+  </div>
+  <div class="task">③ Shells: <math><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><msup><mi>x</mi><mn>2</mn></msup></math> on
+    <math><mo>[</mo><mn>0</mn><mo>,</mo><mn>2</mn><mo>]</mo></math>. Rotate about <math><mi>x</mi><mo>=</mo><mn>0</mn></math>, then <math><mi>x</mi><mo>=</mo><mo>−</mo><mn>1</mn></math>, then <math><mi>x</mi><mo>=</mo><mn>3</mn></math>.
+    Two of these give the same volume. Which two, and why?
+    <details class="explain"><summary>Show explanation</summary>
+      <table class="mini">
+        <tr><th>axis</th><th>radius <math><mi>r</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math></th><th><math><mi>V</mi></math></th></tr>
+        <tr><td><math><mi>x</mi><mo>=</mo><mn>0</mn></math></td><td><math><mi>x</mi></math></td><td>8π ≈ 25.133</td></tr>
+        <tr><td><math><mi>x</mi><mo>=</mo><mo>−</mo><mn>1</mn></math></td><td><math><mi>x</mi><mo>+</mo><mn>1</mn></math></td><td>40π/3 ≈ 41.888</td></tr>
+        <tr><td><math><mi>x</mi><mo>=</mo><mn>3</mn></math></td><td><math><mn>3</mn><mo>−</mo><mi>x</mi></math></td><td>8π ≈ 25.133</td></tr>
+      </table>
+      <p>The axes <math><mi>x</mi><mo>=</mo><mn>0</mn></math> and <math><mi>x</mi><mo>=</mo><mn>3</mn></math> give the same volume. <b>Pappus's theorem</b> explains it:
+        <math><mi>V</mi><mo>=</mo><mn>2</mn><mi>π</mi><mo>·</mo><mo stretchy="false">(</mo><mtext>distance from centroid to axis</mtext><mo stretchy="false">)</mo><mo>·</mo><mo stretchy="false">(</mo><mtext>area</mtext><mo stretchy="false">)</mo></math>.
+        The centroid of this region is at <math><mover><mi>x</mi><mo>‾</mo></mover><mo>=</mo><mn>1.5</mn></math>, which is exactly 1.5 from both axes.
+        Moving the axis to <math><mi>x</mi><mo>=</mo><mo>−</mo><mn>1</mn></math> puts it 2.5 away, so the volume grows by the factor 2.5/1.5.</p>
+    </details>
+  </div>
+  <div class="task">④ Washers: take <math><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mo>=</mo><mi>x</mi></math> (the cone preset) on
+    <math><mo>[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>]</mo></math>, tick <b>Second curve</b> and type <code>x^2</code>. Rotate the region between them
+    (a) about the <math><mi>x</mi></math>-axis with disks, (b) about the <math><mi>y</mi></math>-axis with shells. Set up both integrals before you look at the numbers.
+    <details class="explain"><summary>Show explanation</summary>
+      <p>On <math><mo>[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>]</mo></math> we have <math><mi>x</mi><mo>≥</mo><msup><mi>x</mi><mn>2</mn></msup></math>, so <math><mi>y</mi><mo>=</mo><mi>x</mi></math> is the outer curve.</p>
+      <p>(a) Washers with <math><mi>R</mi><mo>=</mo><mi>x</mi></math>, <math><mi>r</mi><mo>=</mo><msup><mi>x</mi><mn>2</mn></msup></math>:
+        <math><mi>V</mi><mo>=</mo><mi>π</mi><msubsup><mo>∫</mo><mn>0</mn><mn>1</mn></msubsup><mo stretchy="false">(</mo><msup><mi>x</mi><mn>2</mn></msup><mo>−</mo><msup><mi>x</mi><mn>4</mn></msup><mo stretchy="false">)</mo><mspace width="0.17em"/><mi>d</mi><mi>x</mi><mo>=</mo><mi>π</mi><mrow><mo>(</mo><mfrac><mn>1</mn><mn>3</mn></mfrac><mo>−</mo><mfrac><mn>1</mn><mn>5</mn></mfrac><mo>)</mo></mrow><mo>=</mo><mfrac><mrow><mn>2</mn><mi>π</mi></mrow><mn>15</mn></mfrac><mo>≈</mo><mn>0.41888</mn></math>.
+        The common error <math><mi>π</mi><mo>∫</mo><msup><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>−</mo><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><mn>2</mn></msup><mi>d</mi><mi>x</mi><mo>=</mo><mfrac><mi>π</mi><mn>30</mn></mfrac></math> is 4 times too small.</p>
+      <p>(b) Shells with radius <math><mi>x</mi></math>, height <math><mi>x</mi><mo>−</mo><msup><mi>x</mi><mn>2</mn></msup></math>:
+        <math><mi>V</mi><mo>=</mo><mn>2</mn><mi>π</mi><msubsup><mo>∫</mo><mn>0</mn><mn>1</mn></msubsup><mi>x</mi><mo stretchy="false">(</mo><mi>x</mi><mo>−</mo><msup><mi>x</mi><mn>2</mn></msup><mo stretchy="false">)</mo><mspace width="0.17em"/><mi>d</mi><mi>x</mi><mo>=</mo><mn>2</mn><mi>π</mi><mrow><mo>(</mo><mfrac><mn>1</mn><mn>3</mn></mfrac><mo>−</mo><mfrac><mn>1</mn><mn>4</mn></mfrac><mo>)</mo></mrow><mo>=</mo><mfrac><mi>π</mi><mn>6</mn></mfrac><mo>≈</mo><mn>0.52360</mn></math>.</p>
+      <p>Both are "big solid minus small solid": the solid from <math><mi>f</mi></math> minus the solid from <math><mi>g</mi></math>. Same region, different axis, different solid and different volume.</p>
+    </details>
+  </div>
+  <div class="task">⑤ Cross-sections: base region under <math><msqrt><mi>x</mi></msqrt></math> on <math><mo>[</mo><mn>0</mn><mo>,</mo><mn>4</mn><mo>]</mo></math>.
+    Switch between the first four shapes. The volumes keep the same ratios to each other — why?
+    <details class="explain"><summary>Show explanation</summary>
+      <p>Every shape has area <math><mi>A</mi><mo>=</mo><mi>κ</mi><msup><mi>s</mi><mn>2</mn></msup></math> for a constant <math><mi>κ</mi></math>, and here <math><msup><mi>s</mi><mn>2</mn></msup><mo>=</mo><mi>x</mi></math>.
+        So <math><mi>V</mi><mo>=</mo><mi>κ</mi><msubsup><mo>∫</mo><mn>0</mn><mn>4</mn></msubsup><mi>x</mi><mspace width="0.17em"/><mi>d</mi><mi>x</mi><mo>=</mo><mn>8</mn><mi>κ</mi></math>:
+        squares 8, isosceles right triangles 4, equilateral triangles <math><mn>2</mn><msqrt><mn>3</mn></msqrt><mo>≈</mo><mn>3.464</mn></math>, semicircles <math><mi>π</mi><mo>≈</mo><mn>3.142</mn></math>.
+        The shape only changes the constant <math><mi>κ</mi></math>; the integral does not change.</p>
+    </details>
+  </div>
+
+</section>
+
+<section id="compare">
+  <h2>3. Disk or shell? One solid, two integrals</h2>
+  <p>Take the region bounded by <math><mi>y</mi><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math>, the line <math><mi>y</mi><mo>=</mo><mi>d</mi></math> and the
+     <math><mi>y</mi></math>-axis, and rotate it about the <math><mi>y</mi></math>-axis. <b>Horizontal</b> strips touch the axis and make disks (integrate in <math><mi>y</mi></math>).
+     <b>Vertical</b> strips are parallel to the axis and make shells (integrate in <math><mi>x</mi></math>). Both must give the same volume.</p>
+  <div class="ctl" style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
+    <div><label>Region</label><select id="cfn"></select></div>
+    <div style="flex:1;min-width:220px"><label>Number of slabs <math><mi>n</mi><mo>=</mo></math> <b id="cnval">4</b> (Midpoint rule for both)</label><input type="range" id="cn" min="1" max="60" value="4"></div>
+    <div><button id="canim" class="primary">▶ Animate</button></div>
+  </div>
+  <div class="cmpgrid">
+    <div>
+      <h3>Disks: horizontal strips, <math><mi>d</mi><mi>y</mi></math></h3>
+      <canvas id="cdisk"></canvas>
+      <div class="formula" id="fdisk"></div>
+      <div class="readbar">
+        <div><span class="lbl">Disk sum <math><msub><mi>D</mi><mi>n</mi></msub></math></span><span id="rdisk" class="val big"></span></div>
+        <div><span class="lbl">Error <math><msub><mi>D</mi><mi>n</mi></msub><mo>−</mo><mi>V</mi></math></span><span id="edisk" class="val"></span></div>
+      </div>
+    </div>
+    <div>
+      <h3>Shells: vertical strips, <math><mi>d</mi><mi>x</mi></math></h3>
+      <canvas id="cshell"></canvas>
+      <div class="formula" id="fshell"></div>
+      <div class="readbar">
+        <div><span class="lbl">Shell sum <math><msub><mi>S</mi><mi>n</mi></msub></math></span><span id="rshell" class="val big"></span></div>
+        <div><span class="lbl">Error <math><msub><mi>S</mi><mi>n</mi></msub><mo>−</mo><mi>V</mi></math></span><span id="eshell" class="val"></span></div>
+      </div>
+    </div>
+  </div>
+  <p id="cexact" style="text-align:center"></p>
+
+  <h3>How fast does each sum converge?</h3>
+  <p>Log–log plot of the error against <math><mi>n</mi></math> (<math><mi>n</mi><mo>=</mo><mn>1</mn><mo>,</mo><mo>…</mo><mo>,</mo><mn>100</mn></math>).
+     A straight line of slope <math><mo>−</mo><mi>p</mi></math> means the error behaves like <math><mi>C</mi><mo>/</mo><msup><mi>n</mi><mi>p</mi></msup></math>.</p>
+  <canvas id="conv"></canvas>
+  <div class="legend" style="margin-top:6px">
+    <span><i class="swatch" style="background:#1565c0"></i>Disks (in <math><mi>y</mi></math>)</span>
+    <span><i class="swatch" style="background:#ef6c00"></i>Shells (in <math><mi>x</mi></math>)</span>
+    <span class="hint">Dashed grey line marks your current <math><mi>n</mi></math>.</span>
+  </div>
+  <p class="hint" id="cobs"></p>
+
+  <h3>Choosing a method</h3>
+  <table class="data">
+    <tr><th>Axis of rotation</th><th>Region described as</th><th>Easiest set-up</th></tr>
+    <tr><td><math><mi>x</mi></math>-axis (horizontal)</td><td class="l">between <math><mi>y</mi><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math> and the <math><mi>x</mi></math>-axis</td><td>Disks in <math><mi>x</mi></math></td></tr>
+    <tr><td><math><mi>x</mi></math>-axis (horizontal)</td><td class="l">between <math><mi>x</mi><mo>=</mo><mi>g</mi><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo></math> and the <math><mi>y</mi></math>-axis</td><td>Shells in <math><mi>y</mi></math></td></tr>
+    <tr><td><math><mi>y</mi></math>-axis (vertical)</td><td class="l">between <math><mi>x</mi><mo>=</mo><mi>g</mi><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo></math> and the <math><mi>y</mi></math>-axis</td><td>Disks in <math><mi>y</mi></math></td></tr>
+    <tr><td><math><mi>y</mi></math>-axis (vertical)</td><td class="l">between <math><mi>y</mi><mo>=</mo><mi>f</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math> and the <math><mi>x</mi></math>-axis</td><td>Shells in <math><mi>x</mi></math></td></tr>
+  </table>
+  <div class="key"><b>Rule of thumb.</b> Strips <i>perpendicular</i> to the axis give disks; strips <i>parallel</i> to the axis give shells.
+    Pick the direction that lets you write the strip's length with <b>one</b> formula and <b>no inverse function</b>.
+    If one method needs the region split into several integrals (because the top or bottom boundary changes part-way), the other method often needs just one.
+    Setting up the same volume both ways is a good check.</div>
+</section>
+
+<section id="apps">
+  <h2>4. Why it matters in your field</h2>
+  <div class="apps">
+    <div><b>Engineering &amp; manufacturing</b><br>Lathe-turned parts, pipes, nozzles and pressure vessels are solids of revolution. Their mass is density × volume from a profile drawing.</div>
+    <div><b>Architecture &amp; design</b><br>Domes, columns and vases are designed as profiles that are then rotated. Concrete or glass volume comes from a disk or shell integral.</div>
+    <div><b>Medicine</b><br>CT and MRI scans are cross-sections. Organ and tumour volumes are found by adding slice area × slice thickness: the slicing method with real data.</div>
+    <div><b>Computer science &amp; 3-D printing</b><br>Slicer software cuts a model into layers, and voxel renderers add up tiny volumes. Both are <math><mo>∑</mo><mi>A</mi><mspace width="0.17em"/><mi mathvariant="normal">Δ</mi><mi>x</mi></math> in code.</div>
+  </div>
+
+  <h3 style="margin-top:22px">Worked example (design): how much does this vase hold?</h3>
+  <p class="problem">A ceramic vase is 30 cm tall. Its inside is round at every height, and a designer measured the inner radius every 5 cm.
+    Estimate how much water it holds, in litres.</p>
+  <table class="data"><tr><th>height <math><mi>h</mi></math> (cm)</th><td>0</td><td>5</td><td>10</td><td>15</td><td>20</td><td>25</td><td>30</td></tr>
+    <tr><th>radius <math><mi>r</mi></math> (cm)</th><td>4</td><td>6</td><td>8</td><td>7</td><td>5</td><td>3.5</td><td>4</td></tr>
+    <tr><th><math><msup><mi>r</mi><mn>2</mn></msup></math></th><td>16</td><td>36</td><td>64</td><td>49</td><td>25</td><td>12.25</td><td>16</td></tr></table>
+  <ol class="tight">
+    <li><b>Set up.</b> Horizontal slices are disks, so <math><mi>V</mi><mo>=</mo><msubsup><mo>∫</mo><mn>0</mn><mn>30</mn></msubsup><mi>π</mi><msup><mrow><mo>[</mo><mi>r</mi><mo stretchy="false">(</mo><mi>h</mi><mo stretchy="false">)</mo><mo>]</mo></mrow><mn>2</mn></msup><mspace width="0.17em"/><mi>d</mi><mi>h</mi></math>.
+      Units check: <math><msup><mtext>cm</mtext><mn>2</mn></msup><mo>×</mo><mtext>cm</mtext><mo>=</mo><msup><mtext>cm</mtext><mn>3</mn></msup></math>.
+      There is no formula for <math><mi>r</mi></math>, only seven measurements, so a sum is the only way to compute it. Here <math><mi mathvariant="normal">Δ</mi><mi>h</mi><mo>=</mo><mn>5</mn><mspace width="0.25em"/><mtext>cm</mtext></math>.</li>
+    <li><b>Trapezoid rule</b> on the areas <math><mi>A</mi><mo>=</mo><mi>π</mi><msup><mi>r</mi><mn>2</mn></msup></math>:
+      <math><msub><mi>T</mi><mn>6</mn></msub><mo>=</mo><mn>5</mn><mi>π</mi><mrow><mo>[</mo><mfrac><mn>16</mn><mn>2</mn></mfrac><mo>+</mo><mn>36</mn><mo>+</mo><mn>64</mn><mo>+</mo><mn>49</mn><mo>+</mo><mn>25</mn><mo>+</mo><mn>12.25</mn><mo>+</mo><mfrac><mn>16</mn><mn>2</mn></mfrac><mo>]</mo></mrow><mo>=</mo><mn>1011.25</mn><mi>π</mi><mo>≈</mo><mn>3177</mn><mspace width="0.25em"/><msup><mtext>cm</mtext><mn>3</mn></msup></math>.</li>
+    <li><b>Simpson's rule</b> (weights 1, 4, 2, 4, 2, 4, 1), usually more accurate for smooth shapes:
+      <math><msub><mi>S</mi><mn>6</mn></msub><mo>=</mo><mfrac><mn>5</mn><mn>3</mn></mfrac><mi>π</mi><mrow><mo>[</mo><mn>16</mn><mo>+</mo><mn>144</mn><mo>+</mo><mn>128</mn><mo>+</mo><mn>196</mn><mo>+</mo><mn>50</mn><mo>+</mo><mn>49</mn><mo>+</mo><mn>16</mn><mo>]</mo></mrow><mo>=</mo><mfrac><mrow><mn>2995</mn><mi>π</mi></mrow><mn>3</mn></mfrac><mo>≈</mo><mn>3136</mn><mspace width="0.25em"/><msup><mtext>cm</mtext><mn>3</mn></msup></math>.</li>
+    <li><b>Interpret.</b> Since <math><mn>1</mn><mspace width="0.25em"/><mtext>L</mtext><mo>=</mo><mn>1000</mn><mspace width="0.25em"/><msup><mtext>cm</mtext><mn>3</mn></msup></math>, the vase holds about <b>3.1 to 3.2 litres</b>.
+      The two rules differ by about 40 cm³, which shows how much the 5 cm spacing limits the accuracy. Measuring every 2.5 cm would narrow it.</li>
+  </ol>
+  <div class="key"><b>A tempting shortcut that fails.</b> Averaging the radii gives <math><mover><mi>r</mi><mo>‾</mo></mover><mo>=</mo><mfrac><mn>37.5</mn><mn>7</mn></mfrac><mo>≈</mo><mn>5.36</mn></math> cm, and
+    <math><mi>π</mi><msup><mover><mi>r</mi><mo>‾</mo></mover><mn>2</mn></msup><mo>·</mo><mn>30</mn><mo>≈</mo><mn>2705</mn><mspace width="0.25em"/><msup><mtext>cm</mtext><mn>3</mn></msup></math>, about 15% too small.
+    Volume depends on <math><msup><mi>r</mi><mn>2</mn></msup></math>, and the square of the average is always at most the average of the squares.
+    You must square each radius <i>before</i> adding, which is exactly what <math><mi>π</mi><mo>∫</mo><msup><mi>r</mi><mn>2</mn></msup><mspace width="0.17em"/><mi>d</mi><mi>h</mi></math> does.</div>
+
+  <h3>Going further</h3>
+  <div class="apps">
+    <div><b>Gabriel's horn</b><br>Rotate <math><mi>y</mi><mo>=</mo><mn>1</mn><mo>/</mo><mi>x</mi></math>, <math><mi>x</mi><mo>≥</mo><mn>1</mn></math>, about the <math><mi>x</mi></math>-axis.
+      <math><mi>π</mi><msubsup><mo>∫</mo><mn>1</mn><mi>∞</mi></msubsup><mfrac><mrow><mi>d</mi><mi>x</mi></mrow><msup><mi>x</mi><mn>2</mn></msup></mfrac><mo>=</mo><mi>π</mi></math>: finite volume, but infinite surface area.
+      Try <math><mn>1</mn><mo>/</mo><mi>x</mi></math> in the explorer with <math><mi>b</mi><mo>=</mo><mn>10</mn><mo>,</mo><mn>50</mn><mo>,</mo><mn>100</mn></math> and watch <math><mi>V</mi></math> approach <math><mi>π</mi></math>.</div>
+    <div><b>Pappus's centroid theorem</b><br>Rotating a region of area <math><mi>A</mi></math> about an axis it does not cross gives
+      <math><mi>V</mi><mo>=</mo><mn>2</mn><mi>π</mi><mover><mi>d</mi><mo>‾</mo></mover><mi>A</mi></math>, where <math><mover><mi>d</mi><mo>‾</mo></mover></math> is the distance from the centroid to the axis (task ③ in the Explore tab).</div>
+    <div><b>Numerical volumes</b><br>When <math><mi>A</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></math> has no antiderivative formula, or only data is known (scans, measurements), the trapezoid or Simpson's rule gives the volume. The worked example above does exactly this.</div>
+  </div>
+</section>
+
+<section id="quiz">
+  <h2>5. Check quiz</h2>
+  <p class="hint">Ten quick questions. Pick an answer for each, then press <b>Check answers</b>. The concepts stay the same, but the numbers and scenarios change with every <b>New questions</b> or page reload.</p>
+  <div id="quizbox"></div>
+  <button class="primary" id="check">Check answers</button>
+  <button id="reset">Try again</button>
+  <button id="newq">New questions</button>
+  <span id="score" style="margin-left:10px"></span>
+</section>
+
+</main>
+<footer>Volumes by Integration · Interactive lesson for single variable calculus · Custom functions supported · Works offline, no external libraries · Math typeset with native MathML</footer>
+<div id="tip"></div>
+
+<script>
+// ---------- MathML helpers ----------
+const m    = s => `<math>${s}</math>`;
+const md   = s => `<math displaystyle="true">${s}</math>`;
+const mi   = s => `<mi>${s}</mi>`;
+const mn   = s => `<mn>${s}</mn>`;
+const mo   = s => "()[]|".includes(s) ? `<mo stretchy="false">${s}</mo>` : `<mo>${s}</mo>`;
+const moS  = s => `<mo>${s}</mo>`;   // stretchy, for brackets around fractions
+const row  = (...a) => `<mrow>${a.join("")}</mrow>`;
+const sub  = (b, s) => `<msub>${b}${s}</msub>`;
+const sup  = (b, s) => `<msup>${b}${s}</msup>`;
+const frac = (a, b) => `<mfrac>${a}${b}</mfrac>`;
+const sqrtM = s => `<msqrt>${s}</msqrt>`;
+const sp   = `<mspace width="0.17em"/>`;
+const DX   = `<mi mathvariant="normal">Δ</mi><mi>x</mi>`;
+const PI   = mi("π");
+const ivl  = (a, b) => row(mo("["), a, mo(","), b, mo("]"));
+const integV = (a, b, f, v) => `<msubsup><mo>∫</mo>${a}${b}</msubsup>${f}${sp}<mi>d</mi><mi>${v}</mi>`;
+const integ = (a, b, f) => integV(a, b, f, "x");
+const sumTo = top => `<munderover><mo>∑</mo>${row(mi("k"), mo("="), mn(1))}${top}</munderover>`;
+const fof  = arg => row(mi("f"), mo("("), arg, mo(")"));
+const gof  = (name, arg) => row(mi(name), mo("("), arg, mo(")"));
+const sq   = s => sup(row(moS("["), s, moS("]")), mn(2));
+
+// ---------- Functions ----------
+const FUNCS = {
+  lin:  { label: "f(x) = x   (cone)",           f: x => x,                               a: 0,  b: 3 },
+  sq:   { label: "f(x) = x²",                   f: x => x*x,                             a: 0,  b: 2 },
+  sqrt: { label: "f(x) = √x",                   f: Math.sqrt,                            a: 0,  b: 4, dmin: 0 },
+  ball: { label: "f(x) = √(4 − x²)   (sphere)", f: x => Math.sqrt(Math.max(0, 4 - x*x)), a: -2, b: 2, dmin: -2, dmax: 2 },
+  sin:  { label: "f(x) = sin x",                f: Math.sin,                             a: 0,  b: +(Math.PI).toFixed(4) },
+  exp:  { label: "f(x) = eˣ",                   f: Math.exp,                             a: 0,  b: 1 },
+  inv:  { label: "f(x) = 1/x   (Gabriel's horn)", f: x => 1/x,                           a: 1,  b: 10, dmin: 0.05 },
+  bump: { label: "f(x) = 4 − x²",               f: x => 4 - x*x,                         a: -2, b: 2 },
+  vase: { label: "f(x) = 2 + sin x   (vase)",   f: x => 2 + Math.sin(x),                 a: 0,  b: 6 },
+  act4: { label: "f(x) = e^(sin x) √(cos x)",   f: x => Math.exp(Math.sin(x))*Math.sqrt(Math.max(0, Math.cos(x))), a: -1.5708, b: 1.5708, dmin: -1.5708, dmax: 1.5708 },
+  act5: { label: "f(x) = (x − 1)(2 − x)", f: x => (x - 1)*(2 - x),          a: 1,  b: 2 },
+  custom: { label: "Custom… (type your own f)", f: x => NaN, custom: true, src: "" },
+};
+// For the "Show the integral" line: each preset's formula as MathML (s, precedence p, atom = a single symbol),
+// optional exact limits (la, lb), and closed forms of  I2 = ∫ f² dx  and  X = ∫ x f dx  on the default interval.
+// A closed form is { p, q, pi, r3, o, ov }: (p/q) · π^pi · √3^r3 · o, where o is extra MathML with numeric value ov.
+const PAR = s => row(moS("("), s, moS(")"));
+const fnM = (name, arg) => row(mi(name), mo("⁡"), arg);
+const OTHER = {
+  e2m1: { o: PAR(sup(mi("e"), mn(2)) + mo("−") + mn(1)), ov: Math.E**2 - 1 },
+  e2me: { o: PAR(sup(mi("e"), mn(2)) + mo("−") + sup(mi("e"), row(mo("−"), mn(2)))), ov: Math.E**2 - Math.E**-2 },
+  vI2:  { o: PAR(mn(31) + mo("−") + mn(4) + fnM("cos", mn(6)) + mo("−") + frac(mn(1), mn(4)) + fnM("sin", mn(12))), ov: 31 - 4*Math.cos(6) - Math.sin(12)/4 },
+  vX:   { o: PAR(mn(36) + mo("+") + fnM("sin", mn(6)) + mo("−") + mn(6) + fnM("cos", mn(6))), ov: 36 + Math.sin(6) - 6*Math.cos(6) },
+};
+const halfPi = frac(PI, mn(2));
+const EXACT = {
+  lin:  { M: mi("x"), mp: 5, atom: true,                     I2: { p: 9, q: 1 },   X: { p: 9, q: 1 } },
+  sq:   { M: sup(mi("x"), mn(2)), mp: 4,                     I2: { p: 32, q: 5 },  X: { p: 4, q: 1 } },
+  sqrt: { M: sqrtM(mi("x")), mp: 5,                          I2: { p: 8, q: 1 },   X: { p: 64, q: 5 } },
+  ball: { M: sqrtM(row(mn(4), mo("−"), sup(mi("x"), mn(2)))), mp: 5, I2: { p: 32, q: 3 } },
+  sin:  { M: fnM("sin", mi("x")), mp: 3.5, lb: PI,           I2: { p: 1, q: 2, pi: 1 }, X: { p: 1, q: 1, pi: 1 } },
+  exp:  { M: sup(mi("e"), mi("x")), mp: 4,                   I2: { p: 1, q: 2, ...OTHER.e2m1 }, X: { p: 1, q: 1 } },
+  inv:  { M: frac(mn(1), mi("x")), mp: 3,                    I2: { p: 9, q: 10 },  X: { p: 9, q: 1 } },
+  bump: { M: row(mn(4), mo("−"), sup(mi("x"), mn(2))), mp: 1, I2: { p: 512, q: 15 } },
+  vase: { M: row(mn(2), mo("+"), fnM("sin", mi("x"))), mp: 1, I2: { p: 1, q: 1, ...OTHER.vI2 }, X: { p: 1, q: 1, ...OTHER.vX } },
+  act4: { M: row(sup(mi("e"), fnM("sin", mi("x"))), sqrtM(fnM("cos", mi("x")))), mp: 3,
+          la: row(mo("−"), halfPi), lb: halfPi,              I2: { p: 1, q: 2, ...OTHER.e2me } },
+  act5: { M: row(PAR(mi("x") + mo("−") + mn(1)), PAR(mn(2) + mo("−") + mi("x"))), mp: 3, I2: { p: 1, q: 30 }, X: { p: 1, q: 4 } },
+};
+const SHAPES = {
+  sq:   { label: "Square",                          c: 1,              cM: "" },
+  semi: { label: "Semicircle (diameter s)",         c: Math.PI/8,      cM: frac(PI, mn(8)) },
+  eq:   { label: "Equilateral triangle",            c: Math.sqrt(3)/4, cM: frac(sqrtM(mn(3)), mn(4)) },
+  rt:   { label: "Isosceles right triangle (leg s)", c: 0.5,           cM: frac(mn(1), mn(2)) },
+  rect: { label: "Rectangle of height h(x)  (e.g. wedge)", c: 1,        cM: "", rect: true },
+};
+
+// ---------- Custom functions: a small safe parser (no eval) ----------
+// Grammar:  expr = term (± term)* ;  term = unary ((*|/|implicit) power)* ;
+//           unary = (±) unary | power ;  power = atom (^ unary)? ;  atom = number | x | pi | e | f(expr) | (expr) | |expr|
+const FN_IMPL = {
+  sin: Math.sin, cos: Math.cos, tan: Math.tan, sec: x => 1/Math.cos(x), csc: x => 1/Math.sin(x), cot: x => Math.cos(x)/Math.sin(x),
+  asin: Math.asin, acos: Math.acos, atan: Math.atan, sinh: Math.sinh, cosh: Math.cosh, tanh: Math.tanh,
+  sqrt: Math.sqrt, cbrt: Math.cbrt, exp: Math.exp, abs: Math.abs, ln: Math.log, log: Math.log10,
+};
+const NAMES = [...Object.keys(FN_IMPL), "pi", "x", "e"].sort((p, q) => q.length - p.length);   // longest match first
+
+function tokenize(src) {
+  const s = src.toLowerCase().replace(/[−–]/g, "-").replace(/[×·]/g, "*").replace(/÷/g, "/").replace(/\*\*/g, "^").replace(/π/g, "pi");
+  const toks = []; let i = 0;
+  while (i < s.length) {
+    const c = s[i];
+    if (/\s/.test(c)) { i++; continue; }
+    const num = /^(\d+\.?\d*|\.\d+)/.exec(s.slice(i));
+    if (num) { toks.push({ t: "num", v: num[1] }); i += num[1].length; continue; }
+    if (/[a-z]/.test(c)) {
+      const name = NAMES.find(nm => s.startsWith(nm, i));
+      if (!name) throw new Error(`Unknown name “${/^[a-z]+/.exec(s.slice(i))[0]}”. Use x as the variable (see “What can I type?”).`);
+      toks.push({ t: "name", v: name }); i += name.length; continue;
+    }
+    if ("+-*/^()|".includes(c)) { toks.push({ t: c }); i++; continue; }
+    if (c === "[" || c === "{") { toks.push({ t: "(" }); i++; continue; }
+    if (c === "]" || c === "}") { toks.push({ t: ")" }); i++; continue; }
+    throw new Error(`Unexpected character “${c}”.`);
+  }
+  return toks;
+}
+
+function parseExpr(src) {
+  const toks = tokenize(src); let p = 0, absDepth = 0;
+  if (!toks.length) throw new Error("Type a function of x, e.g. x^2 + 1.");
+  const peek = () => toks[p], next = () => toks[p++];
+  const stray = k => k.t === ")" ? "There is a “)” without a matching “(”." : `Unexpected “${k.t}”.`;
+  const expect = t => { const k = next(); if (!k || k.t !== t) throw new Error(t === ")" ? "Missing a closing bracket “)”." : "Missing a closing bar “|”."); };
+  const startsFactor = k => k && (k.t === "num" || k.t === "name" || k.t === "(" || (k.t === "|" && absDepth === 0));
+  function expr() { let n = term(); while (peek() && (peek().t === "+" || peek().t === "-")) { const op = next().t; n = { t: "bin", op, a: n, b: term() }; } return n; }
+  function term() {
+    let n = unary();
+    for (;;) {
+      const k = peek();
+      if (k && (k.t === "*" || k.t === "/")) { next(); n = { t: "bin", op: k.t, a: n, b: unary() }; }
+      else if (startsFactor(k)) n = { t: "bin", op: "*", a: n, b: power() };      // implicit: 2x, 3sin(x), (x+1)(x−1)
+      else return n;
+    }
+  }
+  function unary() { const k = peek(); if (k && (k.t === "-" || k.t === "+")) { next(); const a = unary(); return k.t === "-" ? { t: "neg", a } : a; } return power(); }
+  function power() { const base = atom(); if (peek() && peek().t === "^") { next(); return { t: "bin", op: "^", a: base, b: unary() }; } return base; }
+  function atom() {
+    const k = next();
+    if (!k) throw new Error("The expression ends too early.");
+    if (k.t === "num") return { t: "num", v: k.v };
+    if (k.t === "(") { const n = expr(); expect(")"); return n; }
+    if (k.t === "|") { absDepth++; const n = expr(); absDepth--; expect("|"); return { t: "fn", name: "abs", a: n }; }
+    if (k.t === "name") {
+      if (k.v === "x") return { t: "x" };
+      if (k.v === "pi" || k.v === "e") return { t: "const", v: k.v };
+      if (!peek() || peek().t !== "(") throw new Error(`Put brackets after ${k.v}: write ${k.v}(x), not ${k.v} x.`);
+      next(); const n = expr(); expect(")"); return { t: "fn", name: k.v, a: n };
+    }
+    throw new Error(stray(k));
+  }
+  const tree = expr();
+  if (p < toks.length) throw new Error(stray(toks[p]));
+  return tree;
+}
+
+// real power: allows odd roots of negatives, e.g. x^(1/3), x^(2/3) for x < 0
+function rpow(u, v) {
+  if (u >= 0 || Number.isInteger(v)) return Math.pow(u, v);
+  for (let q = 3; q <= 15; q += 2) { const pp = Math.round(v * q); if (Math.abs(v * q - pp) < 1e-9) return (pp % 2 ? -1 : 1) * Math.pow(-u, v); }
+  return NaN;
+}
+function compile(n) {
+  switch (n.t) {
+    case "num": { const v = parseFloat(n.v); return () => v; }
+    case "x": return x => x;
+    case "const": { const v = n.v === "pi" ? Math.PI : Math.E; return () => v; }
+    case "neg": { const a = compile(n.a); return x => -a(x); }
+    case "fn": { const a = compile(n.a), g = FN_IMPL[n.name]; return x => g(a(x)); }
+  }
+  const a = compile(n.a), b = compile(n.b);
+  switch (n.op) {
+    case "+": return x => a(x) + b(x);
+    case "-": return x => a(x) - b(x);
+    case "*": return x => a(x) * b(x);
+    case "/": return x => a(x) / b(x);
+    default:  return x => rpow(a(x), b(x));
+  }
+}
+
+// syntax tree → MathML  (p = precedence: 1 ±, 2 unary −, 3 ×, 3.5 "sin x", 4 power, 5 atomic)
+const IT = "<mo>&#x2062;</mo>", par = s => row(moS("("), s, moS(")"));
+function toM(n) {
+  switch (n.t) {
+    case "num": return { s: mn(n.v), p: 5, num: true };
+    case "x": return { s: mi("x"), p: 5 };
+    case "const": return { s: mi(n.v === "pi" ? "π" : "e"), p: 5 };
+    case "neg": { const a = toM(n.a); return { s: mo("−") + (a.p <= 2 ? par(a.s) : a.s), p: 2 }; }
+    case "fn": {
+      const a = toM(n.a);
+      if (n.name === "sqrt") return { s: `<msqrt>${a.s}</msqrt>`, p: 5 };
+      if (n.name === "cbrt") return { s: `<mroot>${row(a.s)}${mn(3)}</mroot>`, p: 5 };
+      if (n.name === "abs") return { s: row(moS("|"), a.s, moS("|")), p: 5, abs: true };
+      if (n.name === "exp") return { s: sup(mi("e"), row(a.s)), p: 4 };
+      const head = n.name === "log" ? sub(mi("log"), mn(10)) : mi(n.name);
+      const simple = n.a.t === "x" || n.a.t === "num" || n.a.t === "const";
+      return { s: row(head, mo("⁡"), simple ? sp + a.s : par(a.s)), p: simple ? 3.5 : 5 };
+    }
+  }
+  const a = toM(n.a), b = toM(n.b);
+  if (n.op === "+" || n.op === "-") return { s: a.s + mo(n.op === "-" ? "−" : "+") + (b.p <= 2 ? par(b.s) : b.s), p: 1 };
+  if (n.op === "/") return { s: frac(row(a.s), row(b.s)), p: 5, frac: true };
+  if (n.op === "^") {
+    const bare = ["num", "x", "const"].includes(n.a.t) || a.abs;
+    return { s: sup(bare ? a.s : par(a.s), row(b.s)), p: 4, num: n.a.t === "num" };
+  }
+  if (n.a.t === "neg") return { s: mo("−") + toM({ t: "bin", op: "*", a: n.a.a, b: n.b }).s, p: 2 };   // −2x, not (−2)x
+  const as = a.p < 3 ? par(a.s) : a.s, bs = b.p < 3 ? par(b.s) : b.s;
+  const dot = (b.num && b.p >= 3) || a.p === 3.5 || (a.frac && b.frac);
+  return { s: as + (dot ? mo("·") : IT) + bs, p: 3, num: a.num && a.p >= 3 };
+}
+
+// ---------- Exact value (high-accuracy adaptive Simpson) ----------
+function refIntegral(f, a, b) {                      // adaptive Simpson on 64 panels, ~10–12 digits for smooth f
+  let evals = 0; const cap = 2e6, g = x => { evals++; return f(x); };
+  function asr(a, b, fa, fm, fb, whole, eps, depth) {
+    const c = (a+b)/2, l = (a+c)/2, r = (c+b)/2, fl = g(l), fr = g(r);
+    const left = (c-a)/6*(fa + 4*fl + fm), right = (b-c)/6*(fm + 4*fr + fb), d = left + right - whole;
+    if (depth <= 0 || evals > cap || Math.abs(d) <= 15*eps) return left + right + d/15;
+    return asr(a, c, fa, fl, fm, left, eps/2, depth-1) + asr(c, b, fm, fr, fb, right, eps/2, depth-1);
+  }
+  const P = 64, h = (b-a)/P; let s = 0, scale = 0;
+  for (let i = 0; i <= P; i++) scale = Math.max(scale, Math.abs(f(a + i*h)));
+  const eps = 1e-12 * Math.max(1, scale*(b-a)) / P;
+  for (let i = 0; i < P; i++) {
+    const x0 = a + i*h, x1 = i === P-1 ? b : a + (i+1)*h, f0 = g(x0), f1 = g(x1), fm = g((x0+x1)/2);
+    s += asr(x0, x1, f0, fm, f1, (x1-x0)/6*(f0 + 4*fm + f1), eps, 40);
+  }
+  return s;
+}
+// is f undefined or unbounded somewhere on [a, b]?  (returns {x} or null)
+function domainIssue(f, a, b) {
+  let M1 = 0, M2 = 0, xAt = a;
+  const bad = y => !isFinite(y) || Math.abs(y) > 1e10;
+  for (let i = 0; i <= 1000; i++) { const x = a + (b-a)*i/1000, y = f(x); if (bad(y)) return { x }; M1 = Math.max(M1, Math.abs(y)); }
+  for (let i = 0; i < 4000; i++) { const x = a + (b-a)*(i+0.37)/4000, y = f(x); if (bad(y)) return { x }; if (Math.abs(y) > M2) { M2 = Math.abs(y); xAt = x; } }
+  if (M2 > 2.5*M1 && M2 > 100) return { x: xAt };     // values keep growing as the grid gets finer → vertical asymptote
+  return null;
+}
+
+const $ = id => document.getElementById(id);
+const fnSel = $("fn");
+for (const k in FUNCS) { const o = document.createElement("option"); o.value = k; o.textContent = FUNCS[k].label; fnSel.appendChild(o); }
+for (const k in SHAPES) { const o = document.createElement("option"); o.value = k; o.textContent = SHAPES[k].label; $("shape").appendChild(o); }
+
+// method: "slice" | "disk" | "shell";  k = disk axis y = k;  c = shell axis x = c
+let state = { fn: "lin", a: 0, b: 3, n: 5, m: "M", method: "disk", k: 0, c: 0, shape: "sq", cut: true, smooth: false };
+let hoverI = -1;
+
+// optional second curve g(x): the region is then between f and g
+const G = { on: false, f: x => NaN, src: "" };
+// lower (or inner) boundary of the region: g if switched on, otherwise the axis y = k (disks) or the x-axis
+function lowFn() {
+  if (G.on) return G.f;
+  const base = state.method === "disk" ? state.k : 0;
+  return () => base;
+}
+
+// rectangle height h(x) for the "rect" cross-section shape
+const H = { f: x => x, src: "x", Mx: { s: mi("x"), p: 5, atom: true } };
+const isRect = () => state.method === "slice" && !!SHAPES[state.shape].rect;
+
+// cross-sectional area / slab integrand  A(x)  for the current method
+function areaFn() {
+  const f = FUNCS[state.fn].f, g = lowFn(), { method, k, c } = state, K = SHAPES[state.shape].c;
+  if (method === "disk")  return x => { const R = f(x) - k, r = g(x) - k; return Math.PI*Math.abs(R*R - r*r); };   // washer (r = 0 without g)
+  if (method === "shell") return x => 2*Math.PI*Math.abs(x - c)*Math.abs(f(x) - g(x));
+  if (SHAPES[state.shape].rect) return x => Math.abs(f(x) - g(x))*Math.abs(H.f(x));
+  return x => { const s = f(x) - g(x); return K*s*s; };
+}
+
+let cacheKey = null, cacheVal = NaN, cacheIss = null;
+function analyse() {
+  const F = FUNCS[state.fn];
+  const key = [F.custom ? "c:" + F.src : state.fn, G.on ? "g:" + G.src : "", isRect() ? "h:" + H.src : "", state.a, state.b, state.method, state.k, state.c, state.shape].join("|");
+  if (key === cacheKey) return;
+  cacheKey = key; cacheIss = domainIssue(F.f, state.a, state.b) || (G.on ? domainIssue(G.f, state.a, state.b) : null) || (isRect() ? domainIssue(H.f, state.a, state.b) : null);
+  cacheVal = cacheIss ? NaN : refIntegral(areaFn(), state.a, state.b);
+}
+// washers: does the axis y = k pass between f and g somewhere? (returns x or null)
+function axisThroughRegion() {
+  if (!G.on || state.method !== "disk") return null;
+  const f = FUNCS[state.fn].f, { a, b, k } = state;
+  for (let i = 0; i <= 400; i++) { const x = a + (b-a)*i/400, p = (f(x) - k)*(G.f(x) - k); if (p < -1e-9) return x; }
+  return null;
+}
+const exactVal = () => { analyse(); return cacheVal; };
+const issue = () => { analyse(); return cacheIss; };
+const axisInside = () => state.method === "shell" && state.c > state.a + 1e-9 && state.c < state.b - 1e-9;
+
+function fmt(v, d = 5) {
+  if (!isFinite(v)) return "—";
+  if (Math.abs(v) < 1e-12) v = 0;            // hide floating-point noise such as 5.55e-17
+  if (v !== 0 && (Math.abs(v) < 1e-4 || Math.abs(v) >= 1e6)) return v.toExponential(3);
+  return (+v.toFixed(d)).toString();
+}
+// number as MathML (proper minus sign, ×10^k for scientific notation)
+function mnum(v, d = 4) {
+  const t = fmt(v, d);
+  if (t === "—") return "<mtext>—</mtext>";
+  const neg = t.startsWith("-"), body = neg ? t.slice(1) : t;
+  let out;
+  if (body.includes("e")) {
+    const [man, e] = body.split("e"), k = parseInt(e, 10);
+    out = mn(man) + mo("×") + sup(mn(10), k < 0 ? row(mo("−"), mn(-k)) : mn(k));
+  } else out = mn(body);
+  return neg ? row(mo("−"), out) : row(out);
+}
+const term = v => v < 0 ? row(mo("("), mnum(v), mo(")")) : mnum(v);
+
+// sample point for subinterval i under rule m
+function sampleX(a, dx, i, m) { return m === "L" ? a + i*dx : m === "R" ? a + (i+1)*dx : a + (i + 0.5)*dx; }
+function volSum(n, rule) {
+  const { a, b } = state, A = areaFn(), dx = (b-a)/n; let s = 0;
+  for (let i = 0; i < n; i++) s += A(sampleX(a, dx, i, rule)) * dx;
+  return s;
+}
+
+// ---------- Canvas helpers ----------
+function setupCanvas(c) {
+  const r = window.devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+  c.width = w*r; c.height = h*r;
+  const ctx = c.getContext("2d"); ctx.setTransform(r, 0, 0, r, 0, 0);
+  return { ctx, w, h };
+}
+function niceStep(range, k = 8) {
+  const raw = range/k, p = Math.pow(10, Math.floor(Math.log10(raw))), mm = raw/p;
+  return (mm < 1.5 ? 1 : mm < 3.5 ? 2 : mm < 7.5 ? 5 : 10) * p;
+}
+const tickLabel = (v, step) => String(+v.toFixed(Math.min(12, Math.max(0, -Math.floor(Math.log10(step) + 1e-9)))));
+
+// axes + grid for a 2-D plot; returns the coordinate maps
+function axes2D(ctx, w, h, xmin, xmax, ymin, ymax, ticks = 8) {
+  ctx.font = "11px system-ui";
+  const sx = niceStep(xmax-xmin, ticks), sy = niceStep(ymax-ymin, ticks), xt = [], yt = [];
+  for (let k = Math.ceil(xmin/sx); k*sx <= xmax; k++) xt.push(k*sx);
+  for (let k = Math.ceil(ymin/sy); k*sy <= ymax; k++) yt.push(k*sy);
+  const ylabs = yt.map(y => tickLabel(y, sy));
+  const L = Math.max(36, Math.ceil(Math.max(0, ...ylabs.map(s => ctx.measureText(s).width))) + 10), Rm = 10, T = 10, B = 26;
+  const X = x => L + (x-xmin)/(xmax-xmin)*(w-L-Rm);
+  const Y = y => T + (ymax-y)/(ymax-ymin)*(h-T-B);
+  ctx.fillStyle = "#777"; ctx.strokeStyle = "#eee"; ctx.lineWidth = 1;
+  for (const x of xt) { ctx.beginPath(); ctx.moveTo(X(x), T); ctx.lineTo(X(x), h-B); ctx.stroke(); ctx.textAlign = "center"; ctx.fillText(tickLabel(x, sx), X(x), h-B+14); }
+  yt.forEach((y, j) => { ctx.beginPath(); ctx.moveTo(L, Y(y)); ctx.lineTo(w-Rm, Y(y)); ctx.stroke(); ctx.textAlign = "right"; ctx.fillText(ylabs[j], L-4, Y(y)+4); });
+  ctx.strokeStyle = "#444"; ctx.lineWidth = 1.2;
+  if (ymin <= 0 && ymax >= 0) { ctx.beginPath(); ctx.moveTo(L, Y(0)); ctx.lineTo(w-Rm, Y(0)); ctx.stroke(); }
+  if (xmin <= 0 && xmax >= 0) { ctx.beginPath(); ctx.moveTo(X(0), T); ctx.lineTo(X(0), h-B); ctx.stroke(); }
+  return { X, Y, L, Rm, T, B };
+}
+function dashLine(ctx, x0, y0, x1, y1, col, wdt = 2) {
+  ctx.save(); ctx.setLineDash([7, 5]); ctx.strokeStyle = col; ctx.lineWidth = wdt;
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); ctx.restore();
+}
+
+// ---------- 2-D view: region, strips, axis ----------
+let view = null, strips = [];
+function drawRegion() {
+  const c = $("plot"), { ctx, w, h } = setupCanvas(c);
+  const F = FUNCS[state.fn], f = F.f, { a, b, n, m: rule, method, k, c: cx } = state;
+  const base = method === "disk" ? k : 0, rev = method !== "slice", low = lowFn();
+  const pad = 0.1*(b-a);
+  let xmin = a - pad, xmax = b + pad;
+  const ys = [];
+  for (let q = 0; q <= 400; q++) {
+    const x = a + (b-a)*q/400;
+    for (const y of G.on ? [f(x), low(x)] : [f(x)]) if (isFinite(y) && Math.abs(y) < 1e10) ys.push(y);
+  }
+  let lo = 0, hi = 0;
+  if (ys.length) {
+    ys.sort((p, q) => p - q); lo = ys[0]; hi = ys[ys.length-1];
+    const q1 = ys[Math.floor(0.03*(ys.length-1))], q2 = ys[Math.ceil(0.97*(ys.length-1))];
+    if (q2 > q1 && hi - lo > 15*(q2 - q1)) { lo = q1 - 0.6*(q2-q1); hi = q2 + 0.6*(q2-q1); }
+  }
+  let ymin = Math.min(0, base, lo), ymax = Math.max(0, base, hi);
+  if (method === "disk") { const R = Math.max(Math.abs(hi - k), Math.abs(lo - k)); ymin = Math.min(ymin, k - R); ymax = Math.max(ymax, k + R); }
+  if (method === "shell") { const P = Math.max(Math.abs(a - cx), Math.abs(b - cx)); xmin = Math.min(xmin, cx - P - pad); xmax = Math.max(xmax, cx + P + pad); }
+  const yp = 0.08*(ymax-ymin || 1); ymin -= yp; ymax += yp;
+  const { X, Y, L, Rm, T, B } = axes2D(ctx, w, h, xmin, xmax, ymin, ymax, 7);
+  view = { X, Y, xmin, xmax, L, Rm, w };
+
+  ctx.save(); ctx.beginPath(); ctx.rect(L, T, w-L-Rm, h-T-B); ctx.clip();
+  const Yc = y => Math.max(-1e4, Math.min(1e4, Y(y)));
+  const N = 300, pts = [];
+  for (let q = 0; q <= N; q++) { const x = a + (b-a)*q/N, y = f(x), yl = low(x); pts.push([x, isFinite(y) ? y : base, isFinite(yl) ? yl : base]); }
+
+  // mirror image of the region across the axis: the outline of the solid's profile
+  if (rev) {
+    ctx.save(); ctx.setLineDash([4, 4]); ctx.strokeStyle = "rgba(96,125,139,.8)"; ctx.lineWidth = 1.2;
+    for (const j of G.on ? [1, 2] : [1]) {
+      ctx.beginPath();
+      pts.forEach((p, q) => { const x = p[0], y = p[j], px = method === "shell" ? X(2*cx - x) : X(x), py = method === "disk" ? Yc(2*k - y) : Yc(y); q ? ctx.lineTo(px, py) : ctx.moveTo(px, py); });
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // region: along f, then back along the lower boundary (g, or the axis)
+  ctx.fillStyle = "rgba(120,144,156,.22)"; ctx.beginPath();
+  pts.forEach(([x, y], q) => q ? ctx.lineTo(X(x), Yc(y)) : ctx.moveTo(X(x), Yc(y)));
+  for (let q = pts.length - 1; q >= 0; q--) ctx.lineTo(X(pts[q][0]), Yc(pts[q][2]));
+  ctx.closePath(); ctx.fill();
+
+  // strips
+  const A = areaFn(), dx = (b-a)/n; strips = [];
+  for (let i = 0; i < n; i++) {
+    const xl = a + i*dx, xr = xl + dx, xs = sampleX(a, dx, i, rule), y = f(xs), yl = low(xs);
+    strips.push({ i, xl, xr, xs, y, yl, vol: A(xs)*dx });
+    if (!isFinite(y) || !isFinite(yl)) continue;
+    const sel = i === hoverI;
+    ctx.fillStyle = sel ? "rgba(239,108,0,.55)" : "rgba(21,101,192,.30)";
+    ctx.strokeStyle = sel ? "rgba(230,81,0,1)" : "rgba(21,101,192,.9)";
+    ctx.lineWidth = n > 60 ? 0.5 : 1;
+    const y0 = Yc(Math.max(yl, y)), y1 = Yc(Math.min(yl, y));
+    ctx.fillRect(X(xl), y0, X(xr)-X(xl), y1-y0); ctx.strokeRect(X(xl), y0, X(xr)-X(xl), y1-y0);
+    if (sel && rev) {   // where the strip lands after half a turn
+      ctx.save(); ctx.setLineDash([3, 3]); ctx.strokeStyle = "rgba(230,81,0,.9)";
+      if (method === "disk") { const z0 = Yc(Math.max(2*k - yl, 2*k - y)), z1 = Yc(Math.min(2*k - yl, 2*k - y)); ctx.strokeRect(X(xl), z0, X(xr)-X(xl), z1-z0); }
+      else ctx.strokeRect(X(2*cx - xr), y0, X(2*cx - xl) - X(2*cx - xr), y1-y0);
+      ctx.restore();
+    }
+  }
+  // curve
+  ctx.strokeStyle = "#222"; ctx.lineWidth = 2.2; ctx.beginPath(); let started = false, prevPy = 0;
+  for (let q = 0; q <= 1200; q++) {
+    const x = xmin + (xmax-xmin)*q/1200, y = f(x);
+    if (!isFinite(y)) { started = false; continue; }
+    const py = Yc(y);
+    if (started && Math.abs(py - prevPy) > h) started = false;
+    started ? ctx.lineTo(X(x), py) : ctx.moveTo(X(x), py); started = true; prevPy = py;
+  }
+  ctx.stroke();
+  if (G.on) {   // second curve g
+    ctx.strokeStyle = "#2e7d32"; ctx.lineWidth = 2.2; ctx.beginPath(); started = false;
+    for (let q = 0; q <= 1200; q++) {
+      const x = xmin + (xmax-xmin)*q/1200, y = G.f(x);
+      if (!isFinite(y)) { started = false; continue; }
+      const py = Yc(y);
+      if (started && Math.abs(py - prevPy) > h) started = false;
+      started ? ctx.lineTo(X(x), py) : ctx.moveTo(X(x), py); started = true; prevPy = py;
+    }
+    ctx.stroke();
+  }
+  if (n <= 60) {
+    ctx.fillStyle = "#6a1b9a";
+    for (const s of strips) { if (!isFinite(s.y)) continue; ctx.beginPath(); ctx.arc(X(s.xs), Yc(s.y), n > 30 ? 2 : 3.5, 0, 2*Math.PI); ctx.fill(); }
+  }
+  // axis of rotation
+  if (method === "disk") dashLine(ctx, L, Y(k), w-Rm, Y(k), "#c62828");
+  if (method === "shell") dashLine(ctx, X(cx), T, X(cx), h-B, "#c62828");
+  ctx.restore();
+
+  ctx.font = "italic bold 13px 'Cambria Math', 'STIX Two Math', serif"; ctx.textAlign = "center"; ctx.fillStyle = "#1565c0";
+  const ly = Math.min(Y(0) - 6 > T ? Y(0) + 14 : T+10, h-B-4);
+  for (const [s, v] of [["a", a], ["b", b]]) if (X(v) >= L && X(v) <= w-Rm) ctx.fillText(s, X(v), ly);
+  ctx.font = "12px system-ui"; ctx.fillStyle = "#c62828";
+  if (method === "disk")  { ctx.textAlign = "right"; ctx.fillText(`y = ${fmt(k, 3)}`, w - Rm - 4, Math.max(T + 12, Y(k) - 5)); }
+  if (method === "shell") { ctx.textAlign = "left";  ctx.fillText(`x = ${fmt(cx, 3)}`, Math.min(X(cx) + 4, w - Rm - 50), T + 12); }
+}
+
+// ---------- 3-D view: a tiny painter's-algorithm renderer ----------
+const CAM0 = { yaw: 0.5, pitch: 0.38, zoom: 1 };
+let cam = { ...CAM0 };
+const COL = { slab: [21,101,192], slab2: [66,140,222], sel: [239,108,0], cut: [144,190,240], solid: [0,137,123], solidCut: [128,203,196] };
+
+function bounds3D() {
+  const f = FUNCS[state.fn].f, g = lowFn(), { a, b, method, k, c } = state;
+  let lo = Infinity, hi = -Infinity, S = 1e-3;          // range of both boundaries; S = largest |f − g|
+  for (let q = 0; q <= 200; q++) {
+    const x = a + (b-a)*q/200, y = f(x), z = g(x);
+    for (const v of [y, z]) if (isFinite(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    if (isFinite(y) && isFinite(z)) S = Math.max(S, Math.abs(y - z));
+    if (isRect()) { const hh = H.f(x); if (isFinite(hh)) S = Math.max(S, Math.abs(hh)); }
+  }
+  if (!isFinite(lo)) lo = hi = 0;
+  if (method === "disk") { const R = Math.max(Math.abs(hi-k), Math.abs(lo-k), 1e-3); return [a, b, k-R, k+R, -R, R]; }
+  if (method === "shell") { const P = Math.max(Math.abs(a-c), Math.abs(b-c), 1e-3); return [c-P, c+P, lo, Math.max(hi, lo + 1e-3), -P, P]; }
+  return [a, b, 0, S, lo, hi];
+}
+
+function shapePoly(s, hh) {
+  switch (state.shape) {
+    case "rect": { const t = Math.abs(hh); return [[0,0],[s,0],[s,t],[0,t]]; }
+    case "sq": return [[0,0],[s,0],[s,s],[0,s]];
+    case "eq": return [[0,0],[s,0],[s/2, s*Math.sqrt(3)/2]];
+    case "rt": return [[0,0],[s,0],[0,s]];
+    default: { const P = []; for (let j = 0; j <= 14; j++) { const t = Math.PI*j/14; P.push([s/2 + s/2*Math.cos(t), s/2*Math.sin(t)]); } return P; }
+  }
+}
+
+// pxPerUnit = screen pixels per world unit, so circles get ~1 segment per 3.5 px of circumference
+function buildSolid(pxPerUnit) {
+  const F = FUNCS[state.fn], f = F.f, low = lowFn(), { a, b, n, m: rule, method, k, c } = state;
+  const prims = [], floor = [];
+  const add = (p, col) => prims.push({ p, c: col });
+  const t1 = !state.cut ? 0 : (method === "shell" && c > (a + b)/2) ? Math.PI : 0.5*Math.PI, span = state.cut ? 1.5*Math.PI : 2*Math.PI;
+  const segs = q => Math.max(6, Math.round(q * span / (2*Math.PI)));
+  // segments for a circle of radius r (world units): full-circle count from its on-screen circumference, clamped
+  const circSegs = r => segs(Math.min(192, Math.max(12, Math.round(2*Math.PI*r*pxPerUnit / 3.5))));
+  const ang = (j, S) => t1 + span*j/S;
+
+  // disks/washers: pts = [[x, outer radius, inner radius], ...];  shells and slices: pts = [[x, f(x), lower boundary], ...]
+  const P = (x, r, t) => [x, k + r*Math.cos(t), r*Math.sin(t)];               // disks about y = k
+  function diskSolid(pts, col, cutCol, S) {
+    const ends = [pts[0], pts[pts.length-1]], hole = pts.some(p => p[2] > 1e-9);
+    for (let j = 0; j < S; j++) {
+      const ta = ang(j, S), tb = ang(j+1, S);
+      for (let q = 0; q < pts.length-1; q++) {
+        const [x0, R0, r0] = pts[q], [x1, R1, r1] = pts[q+1];
+        add([P(x0,R0,ta), P(x1,R1,ta), P(x1,R1,tb), P(x0,R0,tb)], col);
+        if (hole) add([P(x0,r0,ta), P(x1,r1,ta), P(x1,r1,tb), P(x0,r0,tb)], col);       // the hole's wall
+      }
+      for (const [x, R, r] of ends) if (R - r > 1e-9) add([P(x,r,ta), P(x,R,ta), P(x,R,tb), P(x,r,tb)], col);   // end face (a ring for washers)
+    }
+    if (state.cut) for (const t of [t1, t1 + span])
+      for (let q = 0; q < pts.length-1; q++) { const [x0, R0, r0] = pts[q], [x1, R1, r1] = pts[q+1]; add([P(x0,r0,t), P(x1,r1,t), P(x1,R1,t), P(x0,R0,t)], cutCol); }
+  }
+  const Q = (rho, y, t) => [c + rho*Math.cos(t), y, rho*Math.sin(t)];        // shells about x = c
+  function shellSolid(pts, col, cutCol, S) {
+    const ends = [pts[0], pts[pts.length-1]];
+    for (let j = 0; j < S; j++) {
+      const ta = ang(j, S), tb = ang(j+1, S);
+      for (let q = 0; q < pts.length-1; q++) {
+        const [x0, y0, z0] = pts[q], [x1, y1, z1] = pts[q+1], r0 = Math.abs(x0 - c), r1 = Math.abs(x1 - c);
+        add([Q(r0,y0,ta), Q(r1,y1,ta), Q(r1,y1,tb), Q(r0,y0,tb)], col);
+        add([Q(r0,z0,ta), Q(r1,z1,ta), Q(r1,z1,tb), Q(r0,z0,tb)], col);
+      }
+      for (const [x, y, z] of ends) { const r = Math.abs(x - c); if (r > 1e-9 && Math.abs(y - z) > 1e-12) add([Q(r,z,ta), Q(r,y,ta), Q(r,y,tb), Q(r,z,tb)], col); }
+    }
+    if (state.cut) for (const t of [t1, t1 + span])
+      for (let q = 0; q < pts.length-1; q++) {
+        const [x0, y0, z0] = pts[q], [x1, y1, z1] = pts[q+1], r0 = Math.abs(x0 - c), r1 = Math.abs(x1 - c);
+        add([Q(r0,z0,t), Q(r1,z1,t), Q(r1,y1,t), Q(r0,y0,t)], cutCol);
+      }
+  }
+  const W = (x, z0, uv) => [x, uv[1], z0 + uv[0]];                             // cross-sections standing on the base
+  function sliceSolid(pts, col) {
+    const polys = pts.map(([x, y, z, hh]) => ({ x, z0: Math.min(z, y), P: shapePoly(Math.abs(y - z), hh) }));
+    for (let q = 0; q < polys.length-1; q++) {
+      const A = polys[q], B = polys[q+1], L = A.P.length;
+      for (let e = 0; e < L; e++) { const e1 = (e+1) % L; add([W(A.x, A.z0, A.P[e]), W(B.x, B.z0, B.P[e]), W(B.x, B.z0, B.P[e1]), W(A.x, A.z0, A.P[e1])], col); }
+    }
+    for (const E of [polys[0], polys[polys.length-1]]) add(E.P.map(uv => W(E.x, E.z0, uv)), col);
+  }
+
+  if (method === "slice") {
+    const N = 80;
+    for (let q = 0; q < N; q++) {
+      const x0 = a + (b-a)*q/N, x1 = a + (b-a)*(q+1)/N, y0 = f(x0), y1 = f(x1), z0 = low(x0), z1 = low(x1);
+      if (isFinite(y0) && isFinite(y1) && isFinite(z0) && isFinite(z1)) floor.push([[x0,0,z0], [x1,0,z1], [x1,0,y1], [x0,0,y0]]);
+    }
+  }
+  // outer and inner radius of a washer about y = k
+  const radii = (y, z) => { const p = Math.abs(y - k), q = Math.abs(z - k); return [Math.max(p, q), Math.min(p, q)]; };
+  if (state.smooth) {
+    const N = method === "slice" ? 60 : 80, pts = [];
+    for (let q = 0; q <= N; q++) {
+      const x = a + (b-a)*q/N, y = f(x), z = low(x);
+      if (isFinite(y) && isFinite(z)) pts.push(method === "disk" ? [x, ...radii(y, z)] : [x, y, z, isRect() ? H.f(x) : 0]);
+    }
+    if (pts.length > 1) {
+      if (method === "disk") diskSolid(pts, COL.solid, COL.solidCut, circSegs(Math.max(...pts.map(p => p[1]))));
+      else if (method === "shell") shellSolid(pts, COL.solid, COL.solidCut, circSegs(Math.max(...pts.map(p => Math.abs(p[0] - c)))));
+      else sliceSolid(pts, COL.solid);
+    }
+  } else {
+    const dx = (b-a)/n;
+    for (let i = 0; i < n; i++) {
+      const xl = a + i*dx, xr = xl + dx, xs = sampleX(a, dx, i, rule), y = f(xs), z = low(xs);
+      if (!isFinite(y) || !isFinite(z)) continue;
+      const col = i === hoverI ? COL.sel : (i % 2 ? COL.slab2 : COL.slab), cutCol = i === hoverI ? [255,183,77] : COL.cut;
+      if (method === "disk") { const [R, r] = radii(y, z); if (R - r > 1e-9) diskSolid([[xl, R, r], [xr, R, r]], col, cutCol, circSegs(R)); }
+      else if (method === "shell") { if (Math.abs(y - z) > 1e-9) shellSolid([[xl, y, z], [xr, y, z]], col, cutCol, circSegs(Math.max(Math.abs(xl - c), Math.abs(xr - c)))); }
+      else if (Math.abs(y - z) > 1e-9) { const hh = isRect() ? H.f(xs) : 0; if (isFinite(hh)) sliceSolid([[xl, y, z, hh], [xr, y, z, hh]], col); }
+    }
+  }
+  return { prims, floor };
+}
+
+function draw3D() {
+  const cv = $("solid"), { ctx, w, h } = setupCanvas(cv);
+  if (issue()) {
+    ctx.fillStyle = "#c62828"; ctx.font = "13px system-ui"; ctx.textAlign = "center";
+    ctx.fillText(G.on ? "f or g is not defined and bounded on [a, b]," : "f is not defined and bounded on [a, b],", w/2, h/2 - 8); ctx.fillText("so there is no solid to draw.", w/2, h/2 + 10);
+    return;
+  }
+  const Bx = bounds3D();
+  const ox = (Bx[0]+Bx[1])/2, oy = (Bx[2]+Bx[3])/2, oz = (Bx[4]+Bx[5])/2;
+  const R = Math.max(1e-6, 0.5*Math.hypot(Bx[1]-Bx[0], Bx[3]-Bx[2], Bx[5]-Bx[4]));
+  const S = cam.zoom * 0.46 * Math.min(w, h - 10) / R;
+  const cyw = Math.cos(cam.yaw), syw = Math.sin(cam.yaw), cp = Math.cos(cam.pitch), spi = Math.sin(cam.pitch);
+  const rot = (x, y, z) => { const x1 = cyw*x + syw*z, z1 = -syw*x + cyw*z; return [x1, cp*y - spi*z1, spi*y + cp*z1]; };
+  const V = p => rot(p[0]-ox, p[1]-oy, p[2]-oz);
+  const scr = v => [w/2 + S*v[0], h/2 + 4 - S*v[1]];
+  const Lt = (() => { const l = [-0.35, 0.6, 0.75], n = Math.hypot(...l); return l.map(v => v/n); })();
+  const path = vs => { ctx.beginPath(); vs.forEach((v, j) => { const s = scr(v); j ? ctx.lineTo(s[0], s[1]) : ctx.moveTo(s[0], s[1]); }); ctx.closePath(); };
+
+  const { prims, floor } = buildSolid(S);
+  // base region (cross-section mode) lies on the floor
+  ctx.fillStyle = "rgba(120,144,156,.35)"; ctx.strokeStyle = "rgba(120,144,156,.35)"; ctx.lineWidth = 0.6;
+  for (const q of floor) { path(q.map(V)); ctx.fill(); ctx.stroke(); }
+
+  const items = prims.map(pr => { const vs = pr.p.map(V); let d = 0; for (const v of vs) d += v[2]; return { vs, d: d/vs.length, c: pr.c }; });
+  items.sort((p, q) => p.d - q.d);
+  for (const it of items) {
+    const v = it.vs;
+    let n = cross(sub3(v[1], v[0]), sub3(v[2], v[0]));
+    if (Math.hypot(...n) < 1e-12 && v.length > 3) n = cross(sub3(v[2], v[0]), sub3(v[3], v[0]));
+    const nl = Math.hypot(...n) || 1, lam = Math.abs((n[0]*Lt[0] + n[1]*Lt[1] + n[2]*Lt[2]) / nl);
+    const kk = 0.52 + 0.55*lam, col = `rgb(${it.c.map(x => Math.min(255, Math.round(x*kk + 25*lam))).join(",")})`;
+    path(v); ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 0.7; ctx.stroke();
+  }
+
+  // axis of rotation (drawn on top, dashed)
+  const { method, k, c, a, b } = state;
+  if (method !== "slice") {
+    const ext = 0.15*R;
+    const p0 = method === "disk" ? [a - ext, k, 0] : [c, Bx[2] - ext, 0], p1 = method === "disk" ? [b + ext, k, 0] : [c, Bx[3] + ext, 0];
+    const s0 = scr(V(p0)), s1 = scr(V(p1));
+    dashLine(ctx, s0[0], s0[1], s1[0], s1[1], "#c62828", 1.8);
+  }
+  // orientation gizmo
+  const gx = 30, gy = h - 28;
+  ctx.font = "11px system-ui"; ctx.textAlign = "center";
+  for (const [e, lab] of [[[1,0,0], "x"], [[0,1,0], "y"], [[0,0,1], "z"]]) {
+    const r = rot(...e), ex = gx + 18*r[0], ey = gy - 18*r[1];
+    ctx.strokeStyle = "#888"; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.fillStyle = "#555"; ctx.fillText(lab, gx + 26*r[0], gy - 26*r[1] + 4);
+  }
+  ctx.textAlign = "left"; ctx.fillStyle = "#555"; ctx.font = "12px system-ui";
+  const word = { disk: G.on ? "washers" : "disks", shell: "shells", slice: "slabs" }[method];
+  ctx.fillText(state.smooth ? "exact solid" : `n = ${state.n} ${state.n === 1 ? word.slice(0, -1) : word}`, 8, 16);
+  $("zreset").disabled = cam.yaw === CAM0.yaw && cam.pitch === CAM0.pitch && cam.zoom === 1;
+}
+const sub3 = (p, q) => [p[0]-q[0], p[1]-q[1], p[2]-q[2]];
+const cross = (p, q) => [p[1]*q[2]-p[2]*q[1], p[2]*q[0]-p[0]*q[2], p[0]*q[1]-p[1]*q[0]];
+
+// ---------- The integral itself (last line of the "Sum written out" box) ----------
+let showInt = false;
+const exprOf = tree => { const e = toM(tree); return { s: e.s, p: e.p, num: !!e.num, atom: tree.t === "x" || tree.t === "num" || tree.t === "const" }; };
+const wrapE = (E, min) => E.p < min ? PAR(E.s) : E.s;
+// A − B, where either side may be a number (0 is dropped)
+function minusE(A, B) {
+  if (typeof B === "number") {
+    if (B === 0) return A;
+    return { s: wrapE(A, 1) + mo(B > 0 ? "−" : "+") + mnum(Math.abs(B)), p: 1 };
+  }
+  if (typeof A === "number") {
+    if (A === 0) return { s: mo("−") + wrapE(B, 3), p: 2 };
+    return { s: mnum(A) + mo("−") + wrapE(B, 3), p: 1 };
+  }
+  return { s: wrapE(A, 1) + mo("−") + wrapE(B, 3), p: 1 };
+}
+const absE = E => ({ s: row(moS("|"), E.s, moS("|")), p: 5 });
+const squareE = E => E.atom ? { s: sup(E.s, mn(2)), p: 4 } : { s: sq(E.s), p: 5 };
+const timesE = (A, B) => ({ s: wrapE(A, 3) + (B.num || B.atom ? mo("·") : "") + wrapE(B, 3), p: 3 });   // x·x, x·2, but x√x, x(4 − x²)
+// sign of u on [a, b]: 1 (never negative), −1 (never positive), 0 (changes sign)
+function signOn(u) {
+  const { a, b } = state; let pos = false, neg = false;
+  for (let i = 0; i <= 400; i++) { const v = u(a + (b-a)*i/400); if (v > 1e-12) pos = true; if (v < -1e-12) neg = true; }
+  return pos && neg ? 0 : neg ? -1 : 1;
+}
+// upper − lower, oriented so it is positive (absolute value bars if the curves cross)
+function heightE(fE, lowE, f, low) {
+  const sg = signOn(x => f(x) - low(x));
+  return sg >= 0 ? minusE(fE, lowE) : sg < 0 ? minusE(lowE, fE) : absE(minusE(fE, lowE));
+}
+const KC = { sq: { p: 1, q: 1 }, semi: { p: 1, q: 8, pi: 1 }, eq: { p: 1, q: 4, r3: 1 }, rt: { p: 1, q: 2 } };
+const mulC = (A, B) => ({ p: A.p*B.p, q: A.q*(B.q || 1), pi: (A.pi || 0) + (B.pi || 0), r3: (A.r3 || 0) + (B.r3 || 0), o: A.o, ov: A.ov });
+function closedM(C) {
+  const g = gcd(C.p, C.q) || 1, p = C.p/g, q = C.q/g;
+  let top = "";
+  if (C.r3) top += sqrtM(mn(3));
+  if (C.pi === 1) top += PI; else if (C.pi > 1) top += sup(PI, mn(C.pi));
+  if (C.o) top += C.o;
+  top = p === 1 && top ? top : mn(p) + top;
+  return q === 1 ? top : frac(row(top), mn(q));
+}
+const closedVal = C => C.p/C.q * Math.PI**(C.pi || 0) * Math.sqrt(3)**(C.r3 || 0) * (C.o ? C.ov : 1);
+
+function integralLine(sumVal, ex) {
+  if (!showInt) return `<div class="intline"><span class="hint">Set up the integral yourself first, then check.</span><button id="intshow" class="primary">Show the integral</button></div>`;
+  const F = FUNCS[state.fn], E = EXACT[state.fn], { a, b, method, k, c } = state;
+  const fE = F.custom ? F.Mx : E && { s: E.M, p: E.mp, atom: !!E.atom };
+  const gE = G.on ? G.Mx : null;
+  if (!fE || (G.on && !gE)) return `<div class="intline"><span class="hint">Type a valid function to see its integral.</span><button id="inthide">Hide</button></div>`;
+  const f = F.f, low = lowFn(), dflt = !F.custom && a === F.a && b === F.b;
+  const la = dflt && E.la ? E.la : mnum(a), lb = dflt && E.lb ? E.lb : mnum(b);
+  const I = (pre, body) => pre + integV(la, lb, body, "x");
+  let setup, C = null;
+  if (method === "disk") {
+    if (!G.on) setup = I(PI, squareE(minusE(fE, k)).s);
+    else {
+      const sg = signOn(x => (f(x) - k)**2 - (G.f(x) - k)**2);
+      const [RE, rE] = sg >= 0 ? [fE, gE] : [gE, fE];
+      let body = row(squareE(minusE(RE, k)).s, mo("−"), squareE(minusE(rE, k)).s);
+      body = sg === 0 ? row(moS("|"), body, moS("|")) : PAR(body);
+      setup = I(PI, body);
+    }
+    if (dflt && !G.on && k === 0 && E.I2) C = mulC(E.I2, { p: 1, q: 1, pi: 1 });
+  } else if (method === "shell") {
+    const xE = { s: mi("x"), p: 5, atom: true };
+    const rE = a >= c ? minusE(xE, c) : b <= c ? minusE(c, xE) : absE(minusE(xE, c));
+    const hE = heightE(fE, G.on ? gE : 0, f, low);
+    setup = I(mn(2) + PI, timesE(rE, hE).s);
+    if (dflt && !G.on && c === 0 && a >= 0 && E.X) C = mulC(E.X, { p: 2, q: 1, pi: 1 });
+  } else {
+    const sE = heightE(fE, G.on ? gE : 0, f, low);
+    if (isRect()) setup = I("", timesE(sE, H.Mx).s);
+    else {
+      setup = I(SHAPES[state.shape].cM, squareE(sE).s);
+      if (dflt && !G.on && E.I2) C = mulC(E.I2, KC[state.shape]);
+    }
+  }
+  const lim = row(munderLim(), sub(mi("V"), mi("n")));
+  let tail, hint;
+  if (issue()) { tail = ""; hint = "The integrand is not defined and bounded on the whole interval, so this integral has no value here."; }
+  else if (C) { tail = mo("=") + closedM(C) + mo("≈") + mnum(ex, 6); hint = "(exact value)"; }
+  else { tail = mo("≈") + mnum(ex, 6); hint = "(numerical value)"; }
+  return `<div class="intline">${md(mi("V") + mo("=") + lim + mo("=") + setup + tail)}` +
+    ` <span class="hint">${hint}</span><button id="inthide">Hide</button></div>`;
+}
+const munderLim = () => `<munder><mo movablelimits="false">lim</mo><mrow><mi>n</mi><mo>→</mo><mi>∞</mi></mrow></munder>`;
+$("sigma").addEventListener("click", e => {
+  if (e.target.id === "intshow") { showInt = true; updateReadout(); }
+  if (e.target.id === "inthide") { showInt = false; updateReadout(); }
+});
+
+// ---------- Readout and the sum written out ----------
+function updateReadout() {
+  const F = FUNCS[state.fn], { a, b, n, m: rule, method, k, c } = state, dx = (b-a)/n;
+  const s = volSum(n, rule), ex = exactVal();
+  $("rdx").textContent = fmt(dx);
+  $("rs").textContent = fmt(s, 6);
+  $("rex").textContent = fmt(ex, 6);
+  $("rerr").textContent = fmt(s - ex, 6);
+  $("rrel").textContent = Math.abs(ex) > 1e-12 ? (100*Math.abs(s-ex)/Math.abs(ex)).toFixed(3) + " %" : "—";
+  $("nval").textContent = n;
+  $("lex").innerHTML = F.custom ? `Reference ${m(mi("V"))} <span class="hint">(numerical)</span>` : `Exact ${m(mi("V"))}`;
+  $("lerr").innerHTML = `Error ${m(sub(mi("V"), mi("n")) + mo("−") + mi("V"))}`;
+
+  const iss = issue(); let warn = "";
+  if (iss) warn = `⚠ ${G.on ? m(mi("f")) + " or " + m(mi("g")) : m(mi("f"))} is undefined or unbounded near ${m(mi("x") + mo("≈") + mnum(iss.x, 4))} in ${m(ivl(mnum(a), mnum(b)))}. ` +
+    `The slabs need ${m(mi("f"))} to be defined and bounded on the whole interval, so these numbers are not meaningful. Try a smaller interval.`;
+  else if (axisThroughRegion() !== null) warn = `⚠ The axis ${m(mi("y") + mo("=") + mnum(k))} passes between ${m(mi("f"))} and ${m(mi("g"))} near ${m(mi("x") + mo("≈") + mnum(axisThroughRegion(), 3))}, so the region lies on both sides of the axis. ` +
+    `The two parts sweep through the same space and ${m(PI + row(mo("("), sup(mi("R"), mn(2)), mo("−"), sup(mi("r"), mn(2)), mo(")")))} no longer gives the volume. Move the axis so both curves are on the same side of it.`;
+  else if (axisInside()) warn = `⚠ The axis ${m(mi("x") + mo("=") + mnum(c))} lies inside ${m(ivl(mnum(a), mnum(b)))}, so parts of the region on both sides of it sweep through the same space. ` +
+    `The shell sum then counts some volume twice. Move the axis to ${m(mi("q") + mo("≤") + mi("a"))} or ${m(mi("q") + mo("≥") + mi("b"))}.`;
+  $("dwarn").innerHTML = warn;
+
+  // build the sum in MathML
+  const pt = { L: sub(mi("x"), row(mi("k"), mo("−"), mn(1))), R: sub(mi("x"), mi("k")), M: sub(`<mover><mi>x</mi><mo>‾</mo></mover>`, mi("k")) }[rule];
+  const lhs = sub(mi("V"), mn(n)) + mo("=") + sumTo(mn(n));
+  const res = `<mrow class="res">${mnum(s, 6)}</mrow>`;
+  const minus = (p, q) => q === 0 ? p : row(p, mo(q > 0 ? "−" : "+"), mnum(Math.abs(q)));
+  let lines = [], note = "";
+  const A = areaFn(), f = F.f, low = lowFn(), xs = []; for (let i = 0; i < n; i++) xs.push(sampleX(a, dx, i, rule));
+  const gx = gof("g", mi("x"));
+  if (method === "disk" && G.on) {
+    lines.push(lhs + PI + row(moS("("), sq(gof("R", pt)), mo("−"), sq(gof("r", pt)), moS(")")) + sp + DX);
+    note = `${m(gof("R", mi("x")))} and ${m(gof("r", mi("x")))} = distances from ${m(mi("y") + mo("=") + mnum(k))} to the farther and the nearer of ${m(fof(mi("x")))}, ${m(gx)}`;
+    if (n <= 6) {
+      const pr = xs.map(x => { const p = Math.abs(f(x) - k), q = Math.abs(low(x) - k); return [Math.max(p, q), Math.min(p, q)]; });
+      const sqN = v => sup(row(moS("("), mnum(v), moS(")")), mn(2));
+      lines.push(mo("=") + PI + mo("·") + mnum(dx) + mo("·") + mo("[") + pr.map(([R, r]) => row(moS("("), sqN(R), mo("−"), sqN(r), moS(")"))).join(mo("+")) + mo("]"));
+      lines.push(mo("=") + PI + mo("·") + mnum(dx) + mo("·") + mo("[") + pr.map(([R, r]) => mnum(R*R - r*r)).join(mo("+")) + mo("]") + mo("=") + res);
+    }
+  } else if (method === "disk") {
+    lines.push(lhs + PI + sq(gof("r", pt)) + sp + DX);
+    note = m(gof("r", mi("x")) + mo("=") + minus(fof(mi("x")), k));
+    if (n <= 6) {
+      const rs = xs.map(x => f(x) - k);
+      lines.push(mo("=") + PI + mo("·") + mnum(dx) + mo("·") + mo("[") + rs.map(r => sup(row(moS("("), mnum(r), moS(")")), mn(2))).join(mo("+")) + mo("]"));
+      lines.push(mo("=") + PI + mo("·") + mnum(dx) + mo("·") + mo("[") + rs.map(r => mnum(r*r)).join(mo("+")) + mo("]") + mo("=") + res);
+    }
+  } else if (method === "shell") {
+    lines.push(lhs + mn(2) + PI + sp + gof("r", pt) + sp + gof("h", pt) + sp + DX);
+    const rM = c === 0 ? (a >= 0 ? mi("x") : row(mo("|"), mi("x"), mo("|"))) : (a >= c ? minus(mi("x"), c) : b <= c ? row(mnum(c), mo("−"), mi("x")) : row(mo("|"), minus(mi("x"), c), mo("|")));
+    note = m(gof("r", mi("x")) + mo("=") + rM) + ", " + m(gof("h", mi("x")) + mo("=") + row(mo("|"), fof(mi("x")), G.on ? mo("−") + gx : "", mo("|")));
+    if (n <= 6) {
+      const rr = xs.map(x => Math.abs(x - c)), hh = xs.map(x => Math.abs(f(x) - low(x)));
+      lines.push(mo("=") + mn(2) + PI + mo("·") + mnum(dx) + mo("·") + mo("[") + rr.map((r, i) => mnum(r) + mo("·") + mnum(hh[i])).join(mo("+")) + mo("]"));
+      lines.push(mo("=") + mn(2) + PI + mo("·") + mnum(dx) + mo("·") + mo("[") + rr.map((r, i) => mnum(r*hh[i])).join(mo("+")) + mo("]") + mo("=") + res);
+    }
+  } else {
+    const K = SHAPES[state.shape].cM;
+    lines.push(lhs + gof("A", pt) + sp + DX);
+    if (isRect()) {
+      const sM = G.on ? row(mo("|"), fof(mi("x")), mo("−"), gx, mo("|")) : row(mo("|"), fof(mi("x")), mo("|"));
+      note = m(gof("A", mi("x")) + mo("=") + gof("s", mi("x")) + mo("·") + gof("h", mi("x"))) + ", where " + m(gof("s", mi("x")) + mo("=") + sM);
+      if (n <= 6) {
+        const ss = xs.map(x => Math.abs(f(x) - low(x))), hh = xs.map(x => Math.abs(H.f(x)));
+        lines.push(mo("=") + mnum(dx) + mo("·") + mo("[") + ss.map((v, i) => mnum(v) + mo("·") + mnum(hh[i])).join(mo("+")) + mo("]"));
+        lines.push(mo("=") + mnum(dx) + mo("·") + mo("[") + ss.map((v, i) => mnum(v*hh[i])).join(mo("+")) + mo("]") + mo("=") + res);
+      }
+    } else {
+    note = m(gof("A", mi("x")) + mo("=") + K + sq(G.on ? row(fof(mi("x")), mo("−"), gx) : fof(mi("x"))));
+    if (n <= 6) {
+      const ss = xs.map(x => f(x) - low(x));
+      lines.push(mo("=") + (K ? K + mo("·") : "") + mnum(dx) + mo("·") + mo("[") + ss.map(v => sup(row(moS("("), mnum(v), moS(")")), mn(2))).join(mo("+")) + mo("]"));
+      lines.push(mo("=") + (K ? K + mo("·") : "") + mnum(dx) + mo("·") + mo("[") + ss.map(v => mnum(v*v)).join(mo("+")) + mo("]") + mo("=") + res);
+    }
+    }
+  }
+  const ruleName = { L: "left endpoints", R: "right endpoints", M: "midpoints" }[rule];
+  if (n <= 6) $("sigma").innerHTML = lines.map((l, j) => `<div>${md(l)}${j === 0 ? ` <span class="hint">with ${note}, sampled at ${ruleName}</span>` : ""}</div>`).join("");
+  else $("sigma").innerHTML = `<div>${md(lines[0] + mo("=") + res)} <span class="hint">with ${note}, sampled at ${ruleName} (terms shown for ${m(row(mi("n"), mo("≤"), mn(6)))})</span></div>`;
+  $("sigma").insertAdjacentHTML("beforeend", integralLine(s, ex));
+}
+
+// Pin the graphs only when they fit: whole screen height side-by-side, at most 60% of it when stacked above the controls
+function layoutVars() {
+  const root = document.documentElement, pc = $("plotcol"), navh = document.querySelector("nav").offsetHeight;
+  root.style.setProperty("--navh", navh + "px");
+  pc.classList.remove("nosticky");
+  const stacked = matchMedia("(max-width: 860px)").matches;
+  let pinned = getComputedStyle(pc).position === "sticky" && pc.offsetHeight > 0;
+  if (pinned && navh + pc.offsetHeight + 8 > innerHeight * (stacked ? 0.6 : 1)) { pc.classList.add("nosticky"); pinned = false; }
+  root.style.scrollPaddingTop = pinned && stacked ? (navh + pc.offsetHeight + 8) + "px" : "";
+}
+document.addEventListener("focusin", e => {
+  const pc = $("plotcol");
+  if (!document.documentElement.style.scrollPaddingTop || pc.contains(e.target) || !$("explore").contains(e.target)) return;
+  const top = pc.getBoundingClientRect().bottom + 8, y = e.target.getBoundingClientRect().top;
+  if (y < top) window.scrollBy(0, y - top);
+});
+function render() {
+  if ($("explore").classList.contains("active")) { layoutVars(); drawRegion(); draw3D(); }
+  updateReadout();
+  if ($("compare").classList.contains("active")) renderCmp();
+}
+
+// ---------- Controls ----------
+function validate() {
+  const F = FUNCS[state.fn]; let a = parseFloat($("a").value), b = parseFloat($("b").value), msg = "";
+  if (isNaN(a) || isNaN(b)) return;
+  if (F.dmin !== undefined && a < F.dmin) { a = F.dmin; $("a").value = a; msg = `a must be ≥ ${F.dmin} for this function.`; }
+  if (F.dmax !== undefined && b > F.dmax) { b = F.dmax; $("b").value = b; msg = `b must be ≤ ${F.dmax} for this function.`; }
+  if (b <= a) { msg = "Need b > a."; $("warn").textContent = msg; return; }
+  $("warn").textContent = msg;
+  state.a = a; state.b = b; hoverI = -1; render();
+}
+function setN(n) { state.n = Math.max(1, Math.min(100, n)); $("n").value = state.n; hoverI = -1; render(); }
+function loadFn(k) {
+  state.fn = k; $("warn").textContent = ""; hoverI = -1; showInt = false;   // new function: hide the integral again
+  $("custombox").hidden = k !== "custom";
+  if (k === "custom") { applyCustom(); $("cexpr").focus(); return; }     // keep the current interval
+  state.a = FUNCS[k].a; state.b = FUNCS[k].b; $("a").value = state.a; $("b").value = state.b; render();
+}
+function setMethod(v) {
+  state.method = v; hoverI = -1;
+  $("axisbox").hidden = v === "slice"; $("shapebox").hidden = v !== "slice"; updateShapeUI();
+  $("lgaxis").style.display = v === "slice" ? "none" : "";
+  $("axislbl").innerHTML = v === "disk" ? `Axis of rotation: horizontal line ${m(mi("y") + mo("=") + mi("p"))}` : `Axis of rotation: vertical line ${m(mi("x") + mo("=") + mi("q"))}`;
+  $("axis").value = v === "disk" ? state.k : state.c;
+  $("cap2d").textContent = v === "slice" ? "Base region, seen from above, and strips" : "Region, strips and axis of rotation";
+  render();
+}
+fnSel.onchange = () => loadFn(fnSel.value);
+document.querySelectorAll("input[name=meth]").forEach(r => r.onchange = () => setMethod(r.value));
+$("axis").onchange = () => { const v = parseFloat($("axis").value); if (isNaN(v)) return; if (state.method === "disk") state.k = v; else state.c = v; hoverI = -1; render(); };
+const updateShapeUI = () => { $("hbox").hidden = state.method !== "slice" || state.shape !== "rect"; };
+$("shape").onchange = () => { state.shape = $("shape").value; updateShapeUI(); if (state.shape === "rect") previewH(); hoverI = -1; render(); };
+$("cut").onchange = () => { state.cut = $("cut").checked; draw3D(); };
+$("smooth").onchange = () => { state.smooth = $("smooth").checked; draw3D(); };
+
+// ---------- Custom function box ----------
+function previewCustom() {
+  try {
+    const tree = parseExpr($("cexpr").value);
+    $("cprev").innerHTML = md(row(fof(mi("x")), mo("="), toM(tree).s));
+    $("cprev").className = "cprev";
+    return tree;
+  } catch (err) {
+    $("cprev").textContent = err.message;
+    $("cprev").className = "cprev error";
+    return null;
+  }
+}
+function applyCustom() {
+  const tree = previewCustom();
+  if (tree) { const C = FUNCS.custom, src = $("cexpr").value.trim(); if (src !== C.src) showInt = false; C.f = compile(tree); C.src = src; C.Mx = exprOf(tree); }
+  if (state.fn === "custom") render();
+}
+$("cexpr").oninput = previewCustom;
+$("cexpr").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); applyCustom(); } };
+$("capply").onclick = applyCustom;
+document.querySelectorAll("#custombox .chips button").forEach(btn => btn.onclick = () => { $("cexpr").value = btn.dataset.e; applyCustom(); });
+// ---------- Second curve g(x) ----------
+function previewG() {
+  try {
+    const tree = parseExpr($("gexpr").value);
+    $("gprev").innerHTML = md(row(gof("g", mi("x")), mo("="), toM(tree).s));
+    $("gprev").className = "cprev";
+    return tree;
+  } catch (err) {
+    $("gprev").textContent = err.message;
+    $("gprev").className = "cprev error";
+    return null;
+  }
+}
+function applyG() {
+  const tree = previewG();
+  if (tree) { const src = $("gexpr").value.trim(); if (src !== G.src) showInt = false; G.f = compile(tree); G.src = src; G.Mx = exprOf(tree); }
+  hoverI = -1; render();
+}
+$("gon").onchange = () => {
+  G.on = $("gon").checked; $("gbox").hidden = !G.on; $("lgg").style.display = G.on ? "" : "none";
+  if (G.on) { showInt = false; applyG(); } else { hoverI = -1; render(); }   // switching g on brings in a new curve
+};
+$("gexpr").oninput = previewG;
+$("gexpr").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); applyG(); } };
+$("gapply").onclick = applyG;
+document.querySelectorAll("#gbox .chips button").forEach(btn => btn.onclick = () => { $("gexpr").value = btn.dataset.e; applyG(); });
+
+// ---------- Rectangle height h(x) ----------
+function previewH() {
+  try {
+    const tree = parseExpr($("hexpr").value);
+    $("hprev").innerHTML = md(row(gof("h", mi("x")), mo("="), toM(tree).s));
+    $("hprev").className = "cprev";
+    return tree;
+  } catch (err) {
+    $("hprev").textContent = err.message;
+    $("hprev").className = "cprev error";
+    return null;
+  }
+}
+function applyH() {
+  const tree = previewH();
+  if (tree) { H.f = compile(tree); H.src = $("hexpr").value.trim(); H.Mx = exprOf(tree); }
+  hoverI = -1; render();
+}
+$("hexpr").oninput = previewH;
+$("hexpr").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); applyH(); } };
+$("happly").onclick = applyH;
+document.querySelectorAll("#hbox .chips button").forEach(btn => btn.onclick = () => { $("hexpr").value = btn.dataset.e; applyH(); });
+
+$("a").onchange = validate; $("b").onchange = validate;
+$("n").oninput = () => setN(+$("n").value);
+$("nminus").onclick = () => setN(state.n - 1);
+$("nplus").onclick = () => setN(state.n + 1);
+$("ndouble").onclick = () => setN(state.n * 2);
+document.querySelectorAll("input[name=m]").forEach(r => r.onchange = () => { state.m = r.value; render(); });
+
+let timer = null;
+$("anim").onclick = () => {
+  if (timer) { clearInterval(timer); timer = null; $("anim").textContent = "▶ Animate"; return; }
+  setN(1); $("anim").textContent = "■ Stop";
+  timer = setInterval(() => {
+    if (state.n >= 60) { clearInterval(timer); timer = null; $("anim").textContent = "▶ Animate"; return; }
+    setN(state.n < 20 ? state.n + 1 : state.n + 4);
+  }, 160);
+};
+
+// hover tooltip on the 2-D graph; the matching slab lights up in the 3-D view
+const tip = $("tip");
+function showTip(clientX, clientY, above) {
+  const r = $("plot").getBoundingClientRect(), px = clientX - r.left;
+  const x = view.xmin + (px - view.L)/(view.w - view.L - view.Rm)*(view.xmax - view.xmin);
+  const S = strips.find(q => x >= q.xl && x < q.xr);
+  const idx = S ? S.i : -1;
+  if (idx !== hoverI) { hoverI = idx; drawRegion(); draw3D(); }
+  if (!S) { tip.style.display = "none"; return; }
+  const { method, k, c } = state;
+  let mid;
+  const fg = G.on ? "|f(c<sub>k</sub>) − g(c<sub>k</sub>)|" : "|f(c<sub>k</sub>)|", hgt = Math.abs(S.y - S.yl);
+  if (method === "disk" && G.on) {
+    const p = Math.abs(S.y - k), q = Math.abs(S.yl - k);
+    mid = `outer R = ${fmt(Math.max(p, q), 4)}, inner r = ${fmt(Math.min(p, q), 4)}<br>washer volume π (R² − r²) Δx = ${fmt(S.vol, 5)}`;
+  }
+  else if (method === "disk") mid = `radius r = |f(c<sub>k</sub>) − p| = ${fmt(Math.abs(S.y - k), 4)}<br>disk volume π r² Δx = ${fmt(S.vol, 5)}`;
+  else if (method === "shell") mid = `radius r = |c<sub>k</sub> − q| = ${fmt(Math.abs(S.xs - c), 4)}, height = ${fg} = ${fmt(hgt, 4)}<br>shell volume 2π r h Δx = ${fmt(S.vol, 5)}`;
+  else if (isRect()) mid = `width s = ${fg} = ${fmt(hgt, 4)}, height h(c<sub>k</sub>) = ${fmt(Math.abs(H.f(S.xs)), 4)}<br>slab volume s h Δx = ${fmt(S.vol, 5)}`;
+  else mid = `side s = ${fg} = ${fmt(hgt, 4)}, area A = ${fmt(S.vol/((state.b-state.a)/state.n), 4)}<br>slab volume A Δx = ${fmt(S.vol, 5)}`;
+  tip.innerHTML = `Slab k = ${S.i+1}: [${fmt(S.xl, 4)}, ${fmt(S.xr, 4)}], c<sub>k</sub> = ${fmt(S.xs, 4)}<br>` + mid;
+  tip.style.display = "block";
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  tip.style.left = Math.max(4, Math.min(clientX + 14, innerWidth - tw - 4)) + "px";
+  tip.style.top = Math.max(4, above ? clientY - th - 24 : Math.min(clientY + 10, innerHeight - th - 4)) + "px";
+}
+function clearHover() { tip.style.display = "none"; if (hoverI !== -1) { hoverI = -1; drawRegion(); draw3D(); } }
+$("plot").addEventListener("mousemove", e => { if (view) showTip(e.clientX, e.clientY, false); });
+$("plot").addEventListener("mouseleave", clearHover);
+$("plot").addEventListener("touchstart", e => { if (view && e.touches.length === 1) showTip(e.touches[0].clientX, e.touches[0].clientY, true); }, { passive: true });
+window.addEventListener("scroll", () => tip.style.display = "none", { passive: true });
+window.addEventListener("resize", render);
+
+// ---------- Turning and zooming the solid ----------
+let rotDrag = null, frame = 0;
+const redraw3D = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; draw3D(); }); };
+const clampPitch = p => Math.max(-1.45, Math.min(1.45, p));
+$("solid").addEventListener("mousedown", e => {
+  if (e.button !== 0) return; e.preventDefault();
+  rotDrag = { x: e.clientX, y: e.clientY, yaw: cam.yaw, pitch: cam.pitch }; $("solid").style.cursor = "grabbing";
+});
+window.addEventListener("mousemove", e => {
+  if (!rotDrag) return;
+  cam.yaw = rotDrag.yaw + (e.clientX - rotDrag.x)*0.01; cam.pitch = clampPitch(rotDrag.pitch + (e.clientY - rotDrag.y)*0.01); redraw3D();
+});
+window.addEventListener("mouseup", () => { if (rotDrag) { rotDrag = null; $("solid").style.cursor = ""; } });
+const resetCam = () => { cam = { ...CAM0 }; draw3D(); };
+$("solid").addEventListener("dblclick", resetCam);
+$("zin").onclick = () => { cam.zoom = Math.min(8, cam.zoom*1.25); draw3D(); };
+$("zout").onclick = () => { cam.zoom = Math.max(0.25, cam.zoom*0.8); draw3D(); };
+$("zreset").onclick = resetCam;
+$("solid").addEventListener("wheel", e => {
+  if (!e.ctrlKey) return;   // plain wheel scrolls the page; Ctrl+wheel (or trackpad pinch) zooms
+  e.preventDefault();
+  cam.zoom = Math.max(0.25, Math.min(8, cam.zoom * Math.exp(-Math.max(-300, Math.min(300, e.deltaY))*0.0015))); redraw3D();
+}, { passive: false });
+// Touch: one finger turns sideways (vertical swipes still scroll the page), two fingers turn freely; double-tap resets
+let tdrag = null, lastTap = 0;
+const mid2 = e => [(e.touches[0].clientX + e.touches[1].clientX)/2, (e.touches[0].clientY + e.touches[1].clientY)/2];
+$("solid").addEventListener("touchstart", e => {
+  if (e.touches.length === 2) { e.preventDefault(); const [x, y] = mid2(e); tdrag = { two: true, x, y, yaw: cam.yaw, pitch: cam.pitch }; }
+  else if (e.touches.length === 1) {
+    const t = e.touches[0]; tdrag = { two: false, x: t.clientX, y: t.clientY, yaw: cam.yaw, pitch: cam.pitch };
+    if (Date.now() - lastTap < 350) { lastTap = 0; resetCam(); } else lastTap = Date.now();
+  }
+}, { passive: false });
+$("solid").addEventListener("touchmove", e => {
+  if (!tdrag) return;
+  if (tdrag.two && e.touches.length === 2) {
+    if (e.cancelable) e.preventDefault();
+    const [x, y] = mid2(e); cam.yaw = tdrag.yaw + (x - tdrag.x)*0.012; cam.pitch = clampPitch(tdrag.pitch + (y - tdrag.y)*0.012); redraw3D();
+  } else if (!tdrag.two && e.touches.length === 1) { cam.yaw = tdrag.yaw + (e.touches[0].clientX - tdrag.x)*0.012; redraw3D(); }
+}, { passive: false });
+$("solid").addEventListener("touchend", e => { if (!e.touches.length) tdrag = null; });
+$("solid").addEventListener("gesturestart", e => e.preventDefault());
+document.addEventListener("touchstart", e => { if (e.target !== $("plot")) tip.style.display = "none"; }, { passive: true });
+
+// ---------- Tab 3: disk vs shell for one solid ----------
+const CMP = {
+  sq:   { label: "y = x² on [0, 2], up to y = 4",  f: x => x*x,       g: y => Math.sqrt(y), b: 2, d: 4, V: 8*Math.PI,
+          fM: sup(mi("x"), mn(2)), gM: sqrtM(mi("y")), VM: row(mn(8), PI),
+          obs: "The disk integrand π[√y]² = πy is a straight line, so the midpoint disk sum is exact for every n (its error is 0 and does not appear on the plot). The shell integrand 2πx(4 − x²) is a cubic: doubling n divides its error by 4." },
+  sqrt: { label: "y = √x on [0, 4], up to y = 2",  f: Math.sqrt,      g: y => y*y,          b: 4, d: 2, V: 32*Math.PI/5,
+          fM: sqrtM(mi("x")), gM: sup(mi("y"), mn(2)), VM: frac(row(mn(32), PI), mn(5)),
+          obs: "Both midpoint sums have error ~ C/n² (slope −2): doubling n divides each error by about 4. The shell integrand 2πx(2 − √x) contains an x^(3/2) term, which is not smooth at x = 0, but here that only slightly affects the error. The disk integrand πy⁴ is a polynomial, yet its error is larger for every n because πy⁴ curves more strongly." },
+  cube: { label: "y = x³ on [0, 1], up to y = 1",  f: x => x**3,      g: y => Math.cbrt(y), b: 1, d: 1, V: 3*Math.PI/5,
+          fM: sup(mi("x"), mn(3)), gM: `<mroot>${mi("y")}${mn(3)}</mroot>`, VM: frac(row(mn(3), PI), mn(5)),
+          obs: "Here the disk integrand π y^(2/3) has a vertical tangent at y = 0, and its error shrinks more slowly (doubling n divides it by only about 3). The shell integrand 2πx(1 − x³) is a polynomial, so its error is divided by 4. Inverting x³ made the disk integral harder." },
+};
+const cSel = $("cfn");
+for (const k in CMP) { const o = document.createElement("option"); o.value = k; o.textContent = CMP[k].label; cSel.appendChild(o); }
+let cstate = { k: "sq", n: 4 };
+const diskSum = (P, n) => { const dy = P.d/n; let s = 0; for (let i = 0; i < n; i++) { const y = (i+0.5)*dy; s += Math.PI*P.g(y)**2*dy; } return s; };
+const shellSum = (P, n) => { const dx = P.b/n; let s = 0; for (let i = 0; i < n; i++) { const x = (i+0.5)*dx; s += 2*Math.PI*x*(P.d - P.f(x))*dx; } return s; };
+
+function drawCmp(id, kind) {
+  const P = CMP[cstate.k], n = cstate.n, { ctx, w, h } = setupCanvas($(id));
+  const xmin = -1.15*P.b, xmax = 1.15*P.b, ymin = -0.1*P.d, ymax = 1.12*P.d;
+  const { X, Y, L, Rm, T, B } = axes2D(ctx, w, h, xmin, xmax, ymin, ymax, 6);
+  ctx.save(); ctx.beginPath(); ctx.rect(L, T, w-L-Rm, h-T-B); ctx.clip();
+  const N = 200, curve = []; for (let q = 0; q <= N; q++) { const x = P.b*q/N; curve.push([x, P.f(x)]); }
+  // mirror image (the other half of the solid's profile)
+  ctx.save(); ctx.setLineDash([4, 4]); ctx.strokeStyle = "rgba(96,125,139,.8)"; ctx.lineWidth = 1.2; ctx.beginPath();
+  curve.forEach(([x, y], q) => q ? ctx.lineTo(X(-x), Y(y)) : ctx.moveTo(X(-x), Y(y))); ctx.lineTo(X(0), Y(P.d)); ctx.stroke(); ctx.restore();
+  // region: left of the curve, below y = d
+  ctx.fillStyle = "rgba(120,144,156,.22)"; ctx.beginPath(); ctx.moveTo(X(0), Y(0));
+  curve.forEach(([x, y]) => ctx.lineTo(X(x), Y(y))); ctx.lineTo(X(0), Y(P.d)); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "rgba(21,101,192,.30)"; ctx.strokeStyle = "rgba(21,101,192,.9)"; ctx.lineWidth = n > 40 ? 0.5 : 1;
+  for (let i = 0; i < n; i++) {
+    if (kind === "disk") {
+      const dy = P.d/n, y0 = i*dy, y1 = y0 + dy, r = P.g(y0 + dy/2);
+      ctx.fillRect(X(0), Y(y1), X(r)-X(0), Y(y0)-Y(y1)); ctx.strokeRect(X(0), Y(y1), X(r)-X(0), Y(y0)-Y(y1));
+    } else {
+      const dx = P.b/n, x0 = i*dx, x1 = x0 + dx, top = P.f(x0 + dx/2);
+      ctx.fillRect(X(x0), Y(P.d), X(x1)-X(x0), Y(top)-Y(P.d)); ctx.strokeRect(X(x0), Y(P.d), X(x1)-X(x0), Y(top)-Y(P.d));
+    }
+  }
+  ctx.strokeStyle = "#222"; ctx.lineWidth = 2.2; ctx.beginPath();
+  for (let q = 0; q <= N; q++) { const x = 1.1*P.b*q/N, y = P.f(x); q ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y)); }
+  ctx.stroke();
+  ctx.strokeStyle = "#444"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(X(0), Y(P.d)); ctx.lineTo(X(P.b), Y(P.d)); ctx.stroke();
+  dashLine(ctx, X(0), T, X(0), h-B, "#c62828");
+  ctx.restore();
+  ctx.font = "12px system-ui"; ctx.fillStyle = "#555"; ctx.textAlign = "left";
+  ctx.fillText(`y = ${P.d}`, X(P.b) + 4, Y(P.d) + 4);
+}
+
+function drawConv() {
+  const P = CMP[cstate.k], { ctx, w, h } = setupCanvas($("conv"));
+  const series = [["disk", "#1565c0", diskSum], ["shell", "#ef6c00", shellSum]], N = 100, data = {};
+  let emin = Infinity, emax = 0;
+  for (const [nm, , fn] of series) {
+    data[nm] = [];
+    for (let n = 1; n <= N; n++) { const e = Math.abs(fn(P, n) - P.V); data[nm].push(e); if (e > 1e-11) { emin = Math.min(emin, e); emax = Math.max(emax, e); } }
+  }
+  if (!isFinite(emin)) { emin = 1e-12; emax = 1; }
+  const lo = Math.floor(Math.log10(emin)), hi = Math.ceil(Math.log10(emax));
+  const L = 52, Rm = 12, T = 10, B = 28;
+  const X = n => L + Math.log10(n)/2*(w-L-Rm);
+  const Y = e => T + (hi - Math.log10(Math.max(e, 10**lo)))/(hi-lo || 1)*(h-T-B);
+  ctx.font = "11px system-ui"; ctx.fillStyle = "#777"; ctx.strokeStyle = "#eee";
+  for (let p = lo; p <= hi; p++) { ctx.beginPath(); ctx.moveTo(L, Y(10**p)); ctx.lineTo(w-Rm, Y(10**p)); ctx.stroke(); ctx.textAlign = "right"; ctx.fillText("1e" + p, L-4, Y(10**p)+4); }
+  for (const n of [1, 2, 5, 10, 20, 50, 100]) { ctx.beginPath(); ctx.moveTo(X(n), T); ctx.lineTo(X(n), h-B); ctx.stroke(); ctx.textAlign = "center"; ctx.fillText(n, X(n), h-B+14); }
+  ctx.fillText("n", w-Rm-6, h-4);
+  ctx.setLineDash([4, 4]); ctx.strokeStyle = "#999";
+  ctx.beginPath(); ctx.moveTo(X(cstate.n), T); ctx.lineTo(X(cstate.n), h-B); ctx.stroke(); ctx.setLineDash([]);
+  for (const [nm, col] of series) {
+    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); let on = false;
+    data[nm].forEach((e, k) => { if (e <= 1e-11) { on = false; return; } const px = X(k+1), py = Y(e); on ? ctx.lineTo(px, py) : ctx.moveTo(px, py); on = true; });
+    ctx.stroke();
+  }
+}
+
+function renderCmp() {
+  const P = CMP[cstate.k], n = cstate.n, D = diskSum(P, n), S = shellSum(P, n);
+  $("cnval").textContent = n;
+  drawCmp("cdisk", "disk"); drawCmp("cshell", "shell"); drawConv();
+  $("rdisk").textContent = fmt(D, 6); $("edisk").textContent = fmt(D - P.V, 6);
+  $("rshell").textContent = fmt(S, 6); $("eshell").textContent = fmt(S - P.V, 6);
+  $("fdisk").innerHTML = md(mi("V") + mo("=") + PI + integV(mn(0), mn(P.d), sq(P.gM), "y"));
+  $("fshell").innerHTML = md(mi("V") + mo("=") + mn(2) + PI + integV(mn(0), mn(P.b), mi("x") + par(row(mn(P.d), mo("−"), P.fM)), "x"));
+  $("cexact").innerHTML = `Both integrals equal ${m(mi("V") + mo("=") + P.VM + mo("≈") + mnum(P.V, 6))}.`;
+  $("cobs").textContent = "Observation: " + P.obs;
+}
+cSel.onchange = () => { cstate.k = cSel.value; renderCmp(); };
+const setCN = n => { cstate.n = Math.max(1, Math.min(60, n)); $("cn").value = cstate.n; renderCmp(); };
+$("cn").oninput = () => setCN(+$("cn").value);
+let ctimer = null;
+$("canim").onclick = () => {
+  if (ctimer) { clearInterval(ctimer); ctimer = null; $("canim").textContent = "▶ Animate"; return; }
+  setCN(1); $("canim").textContent = "■ Stop";
+  ctimer = setInterval(() => {
+    if (cstate.n >= 60) { clearInterval(ctimer); ctimer = null; $("canim").textContent = "▶ Animate"; return; }
+    setCN(cstate.n < 20 ? cstate.n + 1 : cstate.n + 4);
+  }, 160);
+};
+
+// ---------- Tabs ----------
+document.querySelectorAll("nav button[data-t]").forEach(btn => btn.onclick = () => {
+  document.querySelectorAll("nav button[data-t]").forEach(x => x.classList.remove("active"));
+  btn.classList.add("active");
+  document.querySelectorAll("main > section").forEach(s => s.classList.remove("active"));
+  $(btn.dataset.t).classList.add("active");
+  tip.style.display = "none";
+  render();   // canvases have zero size while hidden, so redraw once visible
+  window.scrollTo({ top: 0 });
+});
+
+$("a").value = state.a; $("b").value = state.b;
+setMethod("disk");
+
+// ---------- Quiz: each question is a generator (same concept, fresh numbers) ----------
+const rnd = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+const gcd = (p, q) => q ? gcd(q, p % q) : Math.abs(p);
+function ratM(p, q) {                       // reduced fraction p/q as MathML
+  const g = gcd(p, q) || 1; p /= g; q /= g;
+  const body = q === 1 ? mn(Math.abs(p)) : frac(mn(Math.abs(p)), mn(q));
+  return p < 0 ? row(mo("−"), body) : body;
+}
+// (p/q)·symbol, e.g. 9π/2 or 3√3/4, with a key for de-duplication
+function ratSym(p, q, sym = "") {
+  const g = gcd(p, q) || 1; p /= g; q /= g;
+  const top = sym ? (p === 1 ? sym : row(mn(p), sym)) : mn(p);
+  return { k: `${p}/${q}${sym}`, t: q === 1 ? m(top) : md(frac(top, mn(q))) };
+}
+const nm = v => mnum(v, 4);
+const txtOpt = t => ({ k: t, t });
+// correct option + distractors (deduplicated) → 4 shuffled options
+function makeQ(q, correct, distractors, e) {
+  const seen = new Set([correct.k]), opts = [{ t: correct.t, ok: true }];
+  for (const d of distractors) { if (opts.length >= 4) break; if (!seen.has(d.k)) { seen.add(d.k); opts.push({ t: d.t, ok: false }); } }
+  shuffle(opts);
+  return { q, o: opts.map(x => x.t), a: opts.findIndex(x => x.ok), e };
+}
+const FX = m(fof(mi("x")));
+
+// Q1 — disk radius about a line y = k
+function g1() {
+  const above = Math.random() < 0.5, q = rnd(1, 4);
+  const line = m(mi("y") + mo("=") + (above ? row(mo("−"), mn(q)) : mn(q)));
+  const R = above ? m(fof(mi("x")) + mo("+") + mn(q)) : m(mn(q) + mo("−") + fof(mi("x")));
+  const d = above ? [m(fof(mi("x")) + mo("−") + mn(q)), FX, m(mn(q))] : [m(mn(q) + mo("+") + fof(mi("x"))), FX, m(mn(q))];
+  return makeQ(
+    `The region between the curve ${m(mi("y") + mo("=") + fof(mi("x")))} and the line ${line} is rotated about ${line}. The curve lies <b>${above ? "above" : "below"}</b> the line. The disk radius ${m(gof("R", mi("x")))} is:`,
+    txtOpt(R), shuffle(d.map(txtOpt)),
+    `The radius is the distance from the curve to the axis, measured vertically: (upper) − (lower) = ${R}. ` +
+    (above ? `Subtracting ${m(mo("−") + mn(q))} adds ${m(mn(q))}.` : `Here the axis is the upper one.`) +
+    ` Using ${FX} alone measures from the ${m(mi("x"))}-axis, which is only right when the axis is ${m(mi("y") + mo("=") + mn(0))}.`);
+}
+
+// Q2 — disk volume, f(x) = √(px) on [0, b] about the x-axis
+function g2() {
+  const p = rnd(1, 4), b = pick([2, 3, 4, 6]);
+  const fM = sqrtM(p === 1 ? mi("x") : row(mn(p), mi("x")));
+  const num = p*b*b;                                  // V = π·p·b²/2
+  return makeQ(
+    `The region under ${m(mi("y") + mo("=") + fM)} on ${m(ivl(mn(0), mn(b)))} is rotated about the ${m(mi("x"))}-axis. Its volume is:`,
+    ratSym(num, 2, PI),
+    shuffle([ratSym(num, 2), ratSym(num, 1, PI), ratSym(2*num, 2, PI), ratSym(num, 1)]),
+    `${m(mi("V") + mo("=") + PI + integ(mn(0), mn(b), sup(par(fM), mn(2))) + mo("=") + PI + integ(mn(0), mn(b), p === 1 ? mi("x") : row(mn(p), mi("x"))) +
+      mo("=") + PI + mo("·") + frac(p === 1 ? sup(mn(b), mn(2)) : row(mn(p), mo("·"), sup(mn(b), mn(2))), mn(2)))} = ${ratSym(num, 2, PI).t}. ` +
+    `Squaring the root is what makes this easy. Answers without ${m(PI)} forgot the disk area ${m(PI + sup(mi("R"), mn(2)))}; answers twice as big used ${m(mn(2)+PI)} from the shell formula.`);
+}
+
+// Q3 — shell volume, f(x) = qx on [0, b] about the y-axis
+function g3() {
+  const q = pick([1, 3]), b = rnd(1, 3);   // q = 2 would make the disk distractor equal the answer
+  const fM = q === 1 ? mi("x") : row(mn(q), mi("x"));
+  const num = 2*q*b**3;                               // V = 2π q b³/3
+  return makeQ(
+    `The region under ${m(mi("y") + mo("=") + fM)}, above the ${m(mi("x"))}-axis, on ${m(ivl(mn(0), mn(b)))} is rotated about the ${m(mi("y"))}-axis. Using shells, its volume is:`,
+    ratSym(num, 3, PI),
+    shuffle([ratSym(num/2, 3, PI), ratSym(num, 3), ratSym(q*q*b**3, 3, PI), ratSym(q*b*b, 1, PI), ratSym(num, 1, PI)]),
+    `Shell radius ${m(mi("x"))}, height ${m(fM)}: ${m(mi("V") + mo("=") + mn(2) + PI + integ(mn(0), mn(b), mi("x") + mo("·") + fM) + mo("=") + mn(2) + PI + mo("·") + frac(q === 1 ? sup(mn(b), mn(3)) : row(mn(q), mo("·"), sup(mn(b), mn(3))), mn(3)))} = ${ratSym(num, 3, PI).t}. ` +
+    `${ratSym(q*q*b**3, 3, PI).t} is the disk answer for rotating about the ${m(mi("x"))}-axis instead, a different solid.`);
+}
+
+// Q4 — shell radius about a line x = q (region [A, b] does not always start at 0)
+function g4() {
+  const left = Math.random() < 0.5, A = pick([0, 0, 1, 2]), b = A + rnd(2, 3);
+  let c = rnd(1, 3); if (left && A - c === 0) c++;          // keep the axis off x = 0 so "x" stays a wrong answer
+  const cv = left ? A - c : b + c;                         // axis left of [A, b], or right of it
+  const num = v => v < 0 ? row(mo("−"), mn(-v)) : mn(v);
+  const axis = m(mi("x") + mo("=") + num(cv));
+  const xPlus = v => m(mi("x") + mo("+") + mn(v)), xMinus = v => m(mi("x") + mo("−") + mn(v)), vMinusX = v => m(mn(v) + mo("−") + mi("x"));
+  let R, d;
+  if (left && cv < 0) { R = xPlus(-cv); d = [xMinus(-cv), m(mi("x")), m(mn(-cv))]; }
+  else if (left)      { R = xMinus(cv); d = [xPlus(cv), vMinusX(cv), m(mi("x"))]; }
+  else                { R = vMinusX(cv); d = [xMinus(cv), m(mi("x")), xPlus(cv)]; }
+  if (A > 0) d.push(xMinus(A));                            // measured from the region's edge instead of the axis
+  const edge = A > 0 ? ` The region starts at ${m(mi("x") + mo("=") + mn(A))}, but that does not matter: the radius is measured from the axis, not from the edge of the region, so ${xMinus(A)} is wrong.` : "";
+  return makeQ(
+    `The region under ${m(mi("y") + mo("=") + fof(mi("x")))} on ${m(ivl(mn(A), mn(b)))} is rotated about ${axis}. The shell radius ${m(gof("r", mi("x")))} is:`,
+    txtOpt(R), shuffle(d.map(txtOpt)),
+    `The radius is the horizontal distance from a strip at ${m(mi("x"))} to the axis: (right) − (left). ` +
+    (left ? `The axis is to the left, so ${m(mi("x") + mo("−") + (cv < 0 ? par(num(cv)) : mn(cv)))} = ${R}, which is positive for every ${m(mi("x"))} in ${m(ivl(mn(A), mn(b)))}.`
+          : `The axis is to the right, so the radius is ${R}, which is positive for every ${m(mi("x"))} in ${m(ivl(mn(A), mn(b)))}.`) + edge);
+}
+
+// Q5 — cross-sections on the region under q√x
+function g5() {
+  const q = rnd(1, 3), b = pick([2, 4, 6]), shape = pick(["sq", "semi", "eq"]);
+  const C = { sq: [1, 1, ""], semi: [1, 8, PI], eq: [1, 4, sqrtM(mn(3))] };
+  const nameOf = { sq: "squares", semi: "semicircles (the strip is the diameter)", eq: "equilateral triangles" };
+  const base = q*q*b*b;                               // ∫ s² dx = q² b² / 2
+  const opt = (sh, halve = true) => ratSym(C[sh][0]*base, C[sh][1]*(halve ? 2 : 1), C[sh][2]);
+  const others = ["sq", "semi", "eq"].filter(s => s !== shape);
+  const sM = q === 1 ? sqrtM(mi("x")) : row(mn(q), sqrtM(mi("x")));
+  return makeQ(
+    `A solid has as its base the region under ${m(mi("y") + mo("=") + sM)} on ${m(ivl(mn(0), mn(b)))}. Cross-sections perpendicular to the ${m(mi("x"))}-axis are <b>${nameOf[shape]}</b>. Its volume is:`,
+    opt(shape), shuffle([opt(others[0]), opt(others[1]), opt(shape, false)]),
+    `The side is ${m(mi("s") + mo("=") + sM)}, so ${m(sup(mi("s"), mn(2)) + mo("=") + (q === 1 ? mi("x") : row(mn(q*q), mi("x"))))} and ${m(integ(mn(0), mn(b), sup(mi("s"), mn(2))) + mo("=") + ratM(base, 2))}. ` +
+    `For ${nameOf[shape].split(" (")[0]}, ${m(mi("A") + mo("=") + (shape === "sq" ? "" : frac(C[shape][2] || mn(1), mn(C[shape][1]))) + sup(mi("s"), mn(2)))}, giving ${opt(shape).t}.`);
+}
+
+// Q6 — choosing a method
+function g6() {
+  const S = pick([
+    { axis: "x", desc: `between ${m(mi("y") + mo("=") + sqrtM(mi("x")))} and the ${m(mi("x"))}-axis for ${m(row(mn(0), mo("≤"), mi("x"), mo("≤"), mn(4)))}`, ans: 0,
+      why: `Strips perpendicular to the ${m(mi("x"))}-axis are vertical, touch the axis and have length ${m(sqrtM(mi("x")))}: disks with ${m(mi("d") + mi("x"))}.` },
+    { axis: "y", desc: `between ${m(mi("y") + mo("=") + mi("x") + sup(mi("e"), row(mo("−"), mi("x"))))} and the ${m(mi("x"))}-axis for ${m(row(mn(1), mo("≤"), mi("x"), mo("≤"), mn(3)))}`, ans: 2,
+      why: `Vertical strips are parallel to the ${m(mi("y"))}-axis, so they make shells with radius ${m(mi("x"))} and height ${m(mi("x") + sup(mi("e"), row(mo("−"), mi("x"))))}. Disks would need ${m(mi("x"))} as a function of ${m(mi("y"))}, which has no formula here.` },
+    { axis: "y", desc: `between ${m(mi("x") + mo("=") + sup(mi("y"), mn(2)))} and the ${m(mi("y"))}-axis for ${m(row(mn(0), mo("≤"), mi("y"), mo("≤"), mn(2)))}`, ans: 1,
+      why: `Horizontal strips are perpendicular to the ${m(mi("y"))}-axis and touch it, with length ${m(sup(mi("y"), mn(2)))}: disks with ${m(mi("d") + mi("y"))}.` },
+    { axis: "x", desc: `between ${m(mi("x") + mo("=") + mn(4) + mo("−") + sup(mi("y"), mn(2)))} and the ${m(mi("y"))}-axis for ${m(row(mn(0), mo("≤"), mi("y"), mo("≤"), mn(2)))}`, ans: 3,
+      why: `The boundary is given as ${m(mi("x"))} in terms of ${m(mi("y"))}. Horizontal strips are parallel to the ${m(mi("x"))}-axis, so they make shells with radius ${m(mi("y"))} and length ${m(mn(4) + mo("−") + sup(mi("y"), mn(2)))}, integrated with ${m(mi("d") + mi("y"))}.` },
+  ]);
+  const labels = [`Disks, integrate in ${m(mi("x"))}`, `Disks, integrate in ${m(mi("y"))}`, `Shells, integrate in ${m(mi("x"))}`, `Shells, integrate in ${m(mi("y"))}`];
+  return makeQ(
+    `The region ${S.desc} is rotated about the ${m(mi(S.axis))}-axis. Which set-up needs one integral and no inverse function?`,
+    txtOpt(labels[S.ans]), labels.filter((_, j) => j !== S.ans).map(txtOpt), S.why + " (See the table in the Disk vs Shell tab.)");
+}
+
+let QUIZ = [];
+function buildQuiz() {
+  const box = $("quizbox"); box.innerHTML = "";
+  QUIZ.forEach((item, k) => {
+    const d = document.createElement("div"); d.className = "q";
+    d.innerHTML = `<p class="stem">Q${k+1}. ${item.q}</p>` +
+      item.o.map((t, j) => `<label><input type="radio" name="q${k}" value="${j}"> ${t}</label>`).join("") +
+      `<div class="fb" id="fb${k}"></div>`;
+    box.appendChild(d);
+  });
+  $("score").textContent = "";
+}
+// ---------- Questions on washers, the shell derivation and the choice of axis ----------
+const X_ = mi("x"), dx_ = sp + `<mi>d</mi><mi>x</mi>`;
+
+// Q7 — washer volume: region between y = ax and y = x² on [0, a], about the x-axis
+function g7() {
+  const a = rnd(1, 3), a5 = a**5;
+  const lineM = a === 1 ? X_ : row(mn(a), X_);
+  return makeQ(
+    `The region between ${m(mi("y") + mo("=") + lineM)} and ${m(mi("y") + mo("=") + sup(X_, mn(2)))} (they meet at ${m(mi("x") + mo("=") + mn(0))} and ${m(mi("x") + mo("=") + mn(a))}) is rotated about the ${m(X_)}-axis. Its volume is:`,
+    ratSym(2*a5, 15, PI),
+    shuffle([ratSym(a5, 30, PI), ratSym(2*a5, 15), ratSym(a**4, 6, PI), ratSym(a5, 5, PI)]),
+    `On ${m(ivl(mn(0), mn(a)))} the line is above the parabola, so washers have ${m(mi("R") + mo("=") + lineM)} and ${m(mi("r") + mo("=") + sup(X_, mn(2)))}: ` +
+    `${m(mi("V") + mo("=") + PI + integ(mn(0), mn(a), PAR(sup(lineM === X_ ? X_ : PAR(lineM), mn(2)) + mo("−") + sup(X_, mn(4)))) + mo("=") + PI + PAR(frac(mn(a5), mn(3)) + mo("−") + frac(mn(a5), mn(5))))} = ${ratSym(2*a5, 15, PI).t}. ` +
+    `${ratSym(a5, 30, PI).t} comes from ${m(PI + sup(PAR(mi("R") + mo("−") + mi("r")), mn(2)))}, which is wrong: square each radius first, then subtract. ` +
+    `${ratSym(a**4, 6, PI).t} is the shell answer for rotating about the ${m(mi("y"))}-axis, a different solid.`);
+}
+
+// Q8 — washer set-up about a horizontal line below the region
+function g8() {
+  const q = rnd(1, 3), F = fof(X_), Gx = gof("g", X_);
+  const plus = E => row(E, mo("+"), mn(q)), minus = E => row(E, mo("−"), mn(q));
+  const I = body => m(PI + integ(mi("a"), mi("b"), body));
+  const correct = I(PAR(sq(plus(F)) + mo("−") + sq(plus(Gx))));
+  return makeQ(
+    `A region lies between ${m(mi("y") + mo("=") + F)} (top) and ${m(mi("y") + mo("=") + Gx)} (bottom) for ${m(row(mi("a"), mo("≤"), X_, mo("≤"), mi("b")))}, with both curves above the line ${m(mi("y") + mo("=") + row(mo("−"), mn(q)))}. It is rotated about ${m(mi("y") + mo("=") + row(mo("−"), mn(q)))}. Its volume is:`,
+    txtOpt(correct),
+    shuffle([I(PAR(sq(F) + mo("−") + sq(Gx))), I(PAR(sq(minus(F)) + mo("−") + sq(minus(Gx)))), I(sq(row(F, mo("−"), Gx)))].map(txtOpt)),
+    `Both radii are measured from the axis ${m(mi("y") + mo("=") + row(mo("−"), mn(q)))}: ${m(mi("R") + mo("=") + F + mo("−") + PAR(mo("−") + mn(q)) + mo("=") + plus(F))} and ${m(mi("r") + mo("=") + plus(Gx))}. ` +
+    `Big solid minus small solid gives ${correct}. Using ${m(sup(F, mn(2)) + mo("−") + sup(Gx, mn(2)))} measures from the ${m(X_)}-axis; ${m(sup(PAR(F + mo("−") + Gx), mn(2)))} squares the difference instead of each radius.`);
+}
+
+// Q9 — the shell derivation: which radius makes 2πrhΔr exact?
+function g9() {
+  const r1 = rnd(1, 3), t = rnd(1, 2), h = pick([2, 3, 5]), r2 = r1 + t, mid = (r1 + r2)/2;
+  const exact = h*(r2*r2 - r1*r1);                       // V/π
+  const rOpt = (v, why) => txtOpt(`${m(mi("r") + mo("=") + mn(v))} ${why}`);
+  return makeQ(
+    `A cylindrical shell has inner radius ${m(mn(r1))}, outer radius ${m(mn(r2))} and height ${m(mn(h))}, so ${m(row(mi("Δ"), mi("r")) + mo("=") + mn(t))}. ` +
+    `Its volume equals ${m(mn(2) + PI + mi("r") + mi("h") + sp + row(mi("Δ"), mi("r")))} <b>exactly</b> when ${m(mi("r"))} is:`,
+    rOpt(mid, "(the mid-radius)"),
+    shuffle([rOpt(r1, "(the inner radius)"), rOpt(r2, "(the outer radius)"), txtOpt("Any of them: the formula is only an approximation")]),
+    `Outer cylinder minus inner cylinder: ${m(mi("V") + mo("=") + PI + mo("·") + mn(h) + mo("·") + PAR(sup(mn(r2), mn(2)) + mo("−") + sup(mn(r1), mn(1 + 1))) + mo("=") + mn(exact) + PI)}. ` +
+    `Then ${m(mn(2) + PI + mi("r") + mo("·") + mn(h) + mo("·") + mn(t) + mo("=") + mn(exact) + PI)} gives ${m(mi("r") + mo("=") + mn(mid))}, the mid-radius. ` +
+    `In general ${m(PI + mi("h") + PAR(sup(PAR(mi("r") + mo("+") + frac(row(mi("Δ"), mi("r")), mn(2))), mn(2)) + mo("−") + sup(PAR(mi("r") + mo("−") + frac(row(mi("Δ"), mi("r")), mn(2))), mn(2))) + mo("=") + mn(2) + PI + mi("r") + mi("h") + sp + row(mi("Δ"), mi("r")))} exactly. That is why the Riemann sum for shells uses the midpoint ${m(sub(`<mover><mi>x</mi><mo>‾</mo></mover>`, mi("k")))}.`);
+}
+
+// Q10 — same region, different axis (Activity 5 with the region moved along the x-axis)
+function g10() {
+  const c = rnd(1, 3);
+  const curve = row(PAR(X_ + mo("−") + mn(c)), PAR(mn(c + 1) + mo("−") + X_));
+  return makeQ(
+    `The region between ${m(mi("y") + mo("=") + curve)} and the ${m(X_)}-axis lies on ${m(ivl(mn(c), mn(c + 1)))}. Rotated about the ${m(X_)}-axis it gives ${ratSym(1, 30, PI).t}. Rotated about the <b>${m(mi("y"))}-axis</b>, its volume is:`,
+    ratSym(2*c + 1, 6, PI),
+    shuffle([ratSym(1, 30, PI), ratSym(1, 6, PI), ratSym(2*c + 1, 3, PI)]),
+    `Shells about the ${m(mi("y"))}-axis have radius ${m(X_)} (not ${m(X_ + mo("−") + mn(c))}: the radius is measured from the axis, not the edge of the region, and that mistake gives ${ratSym(1, 6, PI).t}). ` +
+    `${m(mi("V") + mo("=") + mn(2) + PI + integ(mn(c), mn(c + 1), X_ + curve))} = ${ratSym(2*c + 1, 6, PI).t}. ` +
+    `Check with Pappus: area ${m(frac(mn(1), mn(6)))}, centroid at ${m(X_ + mo("=") + mn(c + 0.5))}, so ${m(mi("V") + mo("=") + mn(2) + PI + mo("·") + mn(c + 0.5) + mo("·") + frac(mn(1), mn(6)))}. ` +
+    `Same region, different axis, different solid: always state the axis.`);
+}
+
+function newQuiz() { QUIZ = [g1(), g2(), g3(), g4(), g5(), g6(), g7(), g8(), g9(), g10()]; buildQuiz(); }
+$("check").onclick = () => {
+  let score = 0;
+  QUIZ.forEach((item, k) => {
+    const sel = document.querySelector(`input[name=q${k}]:checked`), fb = $("fb" + k);
+    document.querySelectorAll(`input[name=q${k}]`).forEach(inp => inp.parentElement.classList.remove("right", "wrong"));
+    fb.style.display = "block";
+    if (!sel) { fb.innerHTML = `<span class="error">No answer selected.</span>`; return; }
+    const ok = +sel.value === item.a;
+    if (ok) score++;
+    sel.parentElement.classList.add(ok ? "right" : "wrong");
+    if (!ok) document.querySelector(`input[name=q${k}][value="${item.a}"]`).parentElement.classList.add("right");
+    fb.innerHTML = (ok ? `<b class="good">Correct.</b> ` : `<span class="error">Not quite.</span> `) + item.e;
+  });
+  $("score").textContent = `Score: ${score} / ${QUIZ.length}` + (score === QUIZ.length ? " — excellent!" : "");
+  $("score").style.color = score >= 0.8*QUIZ.length ? "var(--good)" : score >= 0.5*QUIZ.length ? "var(--accent)" : "var(--bad)";
+};
+$("reset").onclick = buildQuiz;
+$("newq").onclick = newQuiz;
+newQuiz();
+
+// "Try these" explanations: open/close all
+$("toggleEx").onclick = () => {
+  const all = [...document.querySelectorAll("details.explain")], open = !all.every(d => d.open);
+  all.forEach(d => d.open = open);
+  $("toggleEx").textContent = open ? "Hide all explanations" : "Show all explanations";
+};
+</script>
+</body>
+</html>
